@@ -218,7 +218,7 @@ program define readWEO
 		}
 		import delimited using `mrmfile', ///
 			delim("\t") bindquotes(nobind) stripquotes(no) clear case(preserve)
-		replace Country = subinstr(Country,"Â","",.)
+		replace Country = subinstr(Country,"Ã‚","",.)
 		keep WEOCountryCode ISO Country
 		destring WEOCountryCode, force replace
 		rename WEOCountryCode WEONumeric
