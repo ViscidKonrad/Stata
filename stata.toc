@@ -1,0 +1,9 @@
+v 3
+
+d David Rosnick, Center for Economic and Policy Research
+l stata http://www.stata.com
+p consumerFinances Produce chartbook variables for FRB Survey of Consumer Finances
+p chain Create chained-currency estimates from component data
+p dumpChars Display character set
+p internationalData Package to handle country codes and WEO data
+p upSample Resample time-series at higher frequency (use with caution!!!)
