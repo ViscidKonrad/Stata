@@ -1,0 +1,9 @@
+v 3
+d chain.  Create chained-currency estimates from component price/quantity data
+d Program by David Rosnick, Center for Economic and Policy Research
+d
+d Distribution-Date: 14may2014
+d
+d Support: email rosnick@cepr.net
+f chain/chain.ado
+f chain/chain.sthlp

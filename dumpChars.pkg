@@ -1,0 +1,9 @@
+v 3
+d dumpChars.  Display character set
+d Program by David Rosnick, Center for Economic and Policy Research
+d
+d Distribution-Date: 31oct2013
+d
+d Support: email rosnick@cepr.net
+f dumpChars/dumpChars.ado
+f dumpChars/dumpChars.sthlp
