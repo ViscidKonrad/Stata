@@ -1,6 +1,0 @@
-{
-  "name": "Stata",
-  "tagline": "Personal Stata Repository",
-  "body": "v 3\r\n\r\nd David Rosnick, Center for Economic and Policy Research\r\nl stata http://www.stata.com\r\np consumerFinances Produce chartbook variables for FRB Survey of Consumer Finances\r\np chain Create chained-currency estimates from component data\r\np dumpChars Display character set\r\np internationalData Package to handle country codes and WEO data\r\np upSample Resample time-series at higher frequency (use with caution!!!)",
-  "note": "Don't delete this file! It's used internally to help with page regeneration."
-}
