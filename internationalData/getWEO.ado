@@ -1,8 +1,8 @@
-*! version 0.8	20apr2016	David Rosnick
+*! version 0.9	18apr2017	David Rosnick
 program define getWEO
 
-	syntax [anything] [, WEOYear(integer 2016) WEOVersion(integer 1) Start(integer 1980) ///
-		End(integer 2021) ISO MAD MPD OECD TED WDI WEO Numeric ALPHA2 ALPHA3 Countryname RAW CLEAN ESTimates UNITS SCALE NOTES]
+	syntax [anything] [, WEOYear(integer 2017) WEOVersion(integer 1) Start(integer 1980) ///
+		End(integer 2022) ISO MAD MPD OECD TED WDI WEO Numeric ALPHA2 ALPHA3 Countryname RAW CLEAN ESTimates UNITS SCALE NOTES]
 
 	tempfile mtemp htmlfile mrmfile
 	
@@ -32,8 +32,8 @@ program define getWEO
 	save `mtemp', replace
 	*
 	*	WEO URL parameters:				(default)	note
-	*	sy:		start year				(2014)*
-	*	ey:		end year				(2021)*					
+	*	sy:		start year				(2015)*
+	*	ey:		end year				(2022)*					
 	*	ssm:	subject notes?			(0)
 	*	scsm:	country-specific notes?	(0)
 	*	scc: 	WEO country codes?		(0)

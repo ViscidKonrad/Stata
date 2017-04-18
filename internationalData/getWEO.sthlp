@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8  20apr2016}{…}
+{* *! version 0.9  18apr2017}{…}
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
@@ -17,11 +17,11 @@
 {synopthdr}
 {synoptline}
 {syntab:Source}
-{synopt :{opt weoy:ear(#)}}WEO database year; default is {cmd:weoyear(2016)}{p_end}
+{synopt :{opt weoy:ear(#)}}WEO database year; default is {cmd:weoyear(2017)}{p_end}
 {synopt :{opt weov:ersion(#)}}WEO database number; default is {cmd:weoversion(1)}{p_end}
 
 {synopt :{opt s:tart(#)}}first year of data to retrieve; default is {cmd:start(1980)}{p_end}
-{synopt :{opt e:nd(#)}}last year of data to retrieve; default is {cmd:end(2021)}{p_end}
+{synopt :{opt e:nd(#)}}last year of data to retrieve; default is {cmd:end(2022)}{p_end}
 
 {syntab:Country identification}
 {synopt :{it:{help getWEO##countryvar_options:countryvar_options}}}options to help identify the source and type of country variable{p_end}
@@ -57,7 +57,7 @@
 {synopt :{opt GGXWDN_NGDP}}General government net debt (Percent of GDP){p_end}
 {synoptline}
 {pstd}
-A full list of the latest variables is available at {browse "http://www.imf.org/external/pubs/ft/weo/2016/01/weodata/index.aspx":World Economic Outlook Database April 2016}
+A full list of the latest variables is available at {browse "http://www.imf.org/external/pubs/ft/weo/2017/01/weodata/index.aspx":World Economic Outlook Database April 2017}
 
 {pstd}
 Note that {cmd:getWEO} currently requires the code/name crosswalk (CountryCodes.dta) to translate {it:countryvar} to WEO country codes. See
