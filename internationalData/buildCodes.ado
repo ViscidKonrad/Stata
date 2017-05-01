@@ -1,4 +1,4 @@
-*! version 1.0	22oct2015	David Rosnick
+*! version 1.1	01may2017	David Rosnick
 program define buildCodes
 
 	syntax anything [, REPLACE LOCAL]
@@ -15,14 +15,12 @@ program define buildCodes
 			local local , `replace'
 		}
 	
-		tempfile isofile weofile wbfile tedfile oecdfile pwtfile
+		tempfile isofile weofile wbfile tedfile oecdfile pwtfile allfiles
 
-		readWikiISO `isofile'	
+		readWikiISO `isofile'
 
 		readWEO `weofile'
 		gen ISOAlpha3 = WEOAlpha3
-		replace ISOAlpha3 = "UNK" if WEOAlpha3 == "UVK"
-		gen byte ISOtemp = WEOAlpha3~=ISOAlpha3
 		merge 1:1 ISOAlpha3 using `isofile'
 		qui levelsof WEOAlpha3 if _merge==1, local(isolevs) clean
 		if ("`isolevs'"~="") {
@@ -35,27 +33,26 @@ program define buildCodes
 			notes WEOAlpha3: `addnote'
 		}
 		drop _merge
-		save `"`anything'"', replace
+		save `allfiles', replace
 		notes
-				
+										
 		readPWT `pwtfile', pwt(pwt81.zip`local')
 		gen ISOAlpha3 = PWTAlpha3
-		merge 1:1 ISOAlpha3 using `"`anything'"', nogen
-		save `"`anything'"', replace
+		merge 1:1 ISOAlpha3 using `allfiles', nogen
+		save `allfiles', replace
 		notes
-				
+						
 		readOECD `oecdfile'
 		gen ISOAlpha3 = OECDAlpha3 if OECDAlpha3~="DEW"
-		merge 1:1 ISOAlpha3 using `"`anything'"', nogen
-		save `"`anything'"', replace
+		merge 1:1 ISOAlpha3 using `allfiles', nogen
+		save `allfiles', replace
 		notes
 
 		readWDI `wbfile'
 		gen ISOAlpha3 = WDIAlpha3
-		replace ISOAlpha3 = "UNK" if WDIAlpha3 == "KSV"
-		gen byte ISOtemp = WDIAlpha3~=ISOAlpha3
-		merge 1:1 ISOAlpha3 using `"`anything'"'
-		qui levelsof WDIAlpha3 if _merge==1 | ISOAlpha3=="UNK", local(isolevs) clean
+		replace ISOAlpha3 = "UVK" if WDIAlpha3 == "XKX"
+		merge 1:1 ISOAlpha3 using `allfiles'
+		qui levelsof WDIAlpha3 if _merge==1 | ISOAlpha3=="UVK", local(isolevs) clean
 		if ("`isolevs'"~="") {
 			local inum : list sizeof isolevs
 			local addnote `"WDI data include non-ISO-official alpha-3 code`=cond(`inum'>1,"s","")' "'
@@ -65,14 +62,14 @@ program define buildCodes
 			}
 			notes WDIAlpha3: `addnote'
 		}
-		drop _merge ISOtemp
+		drop _merge
 		gen MergeName = ""
 		foreach var of varlist ISOC WEOCountryN WDIC OECDC {
 			replace MergeName = `var' if mi(MergeName)
 		}
-		save `"`anything'"', replace
+		save `allfiles', replace
 		notes
-
+		
 		readTED `tedfile', ted(TED`local')
 		gen MergeName = TEDC
 		replace MergeName = "Former Federal Republic of Germany" if MergeName=="West Germany"
@@ -94,12 +91,13 @@ program define buildCodes
 		replace MergeName = "Syrian Arab Republic" if MergeName=="Syria"
 		replace MergeName = "Congo (Democratic Republic of the)" if MergeName=="DR Congo"
 		replace MergeName = "Tanzania, United Republic of" if MergeName=="Tanzania"
-		merge 1:1 MergeName using `"`anything'"', nogen
+		merge 1:1 MergeName using `allfiles', nogen
 		drop MergeName
-		save `"`anything'"', replace
+		save `allfiles', replace
 		notes
-		
+				
 		compress
+		replace ISOAlpha3 = "" if mi(ISOC)
 		lab var ISOAlpha3 "ISO 3166-1 three-letter country code"
 		local vorder ISONumeric TEDNumeric WEONumeric 
 		local vorder `vorder' ISOAlpha2 WDIAlpha2
@@ -122,11 +120,12 @@ program define readPWT
 	syntax anything [, REPLACE PWTlocal(string asis)] 
 	
 	tempfile pf cj
-	local url http://www.rug.nl/research/ggdc/data/pwt/v81/pwt81.zip
+	local url http://www.rug.nl/ggdc/docs/pwt81.zip
 	
 	capture: confirm file `"`anything'"'
 	if (_rc~=0 | "`replace'"=="replace") {
-		! curl  -c `cj' `url' > `pf'
+*		! curl  -c `cj' `url' > `pf'
+		copy `"`url'"' `pf', replace
 		unzipfile `pf', replace
 		use pwt81, clear
 		egen ctag = tag(countrycode)
@@ -171,11 +170,11 @@ program define readWikiISO
 		}
 		import delimited using `mrmfile', delim("||||", asstring) bindquotes(nobind) stripquotes(no) clear charset("mac") 
 		replace v1 = regexr(v1,`"<span style="display[^>]*>[^>]+>"',"")
-		gen ISOCountryName = regexs(2) if regexm(v1,`"<td>(<span[^>]*>)?<a href="[^:>]+>([^<]+)</a>(</span>)?</td>"')
+		gen ISOCountryName = regexs(2) if regexm(v1,`"<td>(<span[^>]*>)?<a href="[^:>]+>([^<]+)</a>(</span>)?(<sup.*</sup>)?</td>"')
 		gen ISOAlpha2 = regexs(1) if ~mi(ISOCou) & regexm(v1[_n+1],`"<td><a href="/wiki/ISO_3166-1_alpha-2#[A-Z][A-Z]" title="ISO 3166-1 alpha-2"><span style="font-family: monospace, monospace;">([A-Z][A-Z])</span></a></td>"')
 		gen ISOAlpha3 = regexs(1) if ~mi(ISOCou) & regexm(v1[_n+2],`"<td><span style="font-family: monospace, monospace;">([A-Z][A-Z][A-Z])</span></td>"')
 		gen ISONumeric = regexs(1) if ~mi(ISOCou) & regexm(v1[_n+3],`"<td><span style="font-family: monospace, monospace;">([0-9][0-9][0-9])</span></td>"')
-		keep if ~mi(ISOC)
+		keep if ~mi(ISOC) & ~mi(ISOAlpha2)
 		drop v1
 		order *, alpha
 		lab var ISON "ISO 3166-1 numeric country code"
@@ -201,7 +200,7 @@ program define readWEO
 
 	tempfile htmlfile mrmfile destination
 
-	local url https://www.imf.org/external/pubs/ft/weo/2013/02/weodata/weoreptc.aspx?sy=1980&ey=1980&scc=1&sic=1&sort=country&ds=.&br=1&c=512%2C446%2C914%2C666%2C612%2C668%2C614%2C672%2C311%2C946%2C213%2C137%2C911%2C962%2C193%2C674%2C122%2C676%2C912%2C548%2C313%2C556%2C419%2C678%2C513%2C181%2C316%2C682%2C913%2C684%2C124%2C273%2C339%2C921%2C638%2C948%2C514%2C943%2C218%2C686%2C963%2C688%2C616%2C518%2C223%2C728%2C516%2C558%2C918%2C138%2C748%2C196%2C618%2C278%2C522%2C692%2C622%2C694%2C156%2C142%2C624%2C449%2C626%2C564%2C628%2C283%2C228%2C853%2C924%2C288%2C233%2C293%2C632%2C566%2C636%2C964%2C634%2C182%2C238%2C453%2C662%2C968%2C960%2C922%2C423%2C714%2C935%2C862%2C128%2C135%2C611%2C716%2C321%2C456%2C243%2C722%2C248%2C942%2C469%2C718%2C253%2C724%2C642%2C576%2C643%2C936%2C939%2C961%2C644%2C813%2C819%2C199%2C172%2C733%2C132%2C184%2C646%2C524%2C648%2C361%2C915%2C362%2C134%2C364%2C652%2C732%2C174%2C366%2C328%2C734%2C258%2C144%2C656%2C146%2C654%2C463%2C336%2C528%2C263%2C923%2C268%2C738%2C532%2C578%2C944%2C537%2C176%2C742%2C534%2C866%2C536%2C369%2C429%2C744%2C433%2C186%2C178%2C925%2C436%2C869%2C136%2C746%2C343%2C926%2C158%2C466%2C439%2C112%2C916%2C111%2C664%2C298%2C826%2C927%2C542%2C846%2C967%2C299%2C443%2C582%2C917%2C474%2C544%2C754%2C941%2C698&s=NGDP_RPCH&grp=0&a=
+	local url https://www.imf.org/external/pubs/ft/weo/2017/01/weodata/weoreptc.aspx?sy=1980&ey=1980&scc=1&sic=1&sort=country&ds=.&br=1&c=512%2c672%2c914%2c946%2c612%2c137%2c614%2c546%2c311%2c962%2c213%2c674%2c911%2c676%2c193%2c548%2c122%2c556%2c912%2c678%2c313%2c181%2c419%2c867%2c513%2c682%2c316%2c684%2c913%2c273%2c124%2c868%2c339%2c921%2c638%2c948%2c514%2c943%2c218%2c686%2c963%2c688%2c616%2c518%2c223%2c728%2c516%2c836%2c918%2c558%2c748%2c138%2c618%2c196%2c624%2c278%2c522%2c692%2c622%2c694%2c156%2c142%2c626%2c449%2c628%2c564%2c228%2c565%2c924%2c283%2c233%2c853%2c632%2c288%2c636%2c293%2c634%2c566%2c238%2c964%2c662%2c182%2c960%2c359%2c423%2c453%2c935%2c968%2c128%2c922%2c611%2c714%2c321%2c862%2c243%2c135%2c248%2c716%2c469%2c456%2c253%2c722%2c642%2c942%2c643%2c718%2c939%2c724%2c644%2c576%2c819%2c936%2c172%2c961%2c132%2c813%2c646%2c199%2c648%2c733%2c915%2c184%2c134%2c524%2c652%2c361%2c174%2c362%2c328%2c364%2c258%2c732%2c656%2c366%2c654%2c734%2c336%2c144%2c263%2c146%2c268%2c463%2c532%2c528%2c944%2c923%2c176%2c738%2c534%2c578%2c536%2c537%2c429%2c742%2c433%2c866%2c178%2c369%2c436%2c744%2c136%2c186%2c343%2c925%2c158%2c869%2c439%2c746%2c916%2c926%2c664%2c466%2c826%2c112%2c542%2c111%2c967%2c298%2c443%2c927%2c917%2c846%2c544%2c299%2c941%2c582%2c446%2c474%2c666%2c754%2c668%2c698&s=NGDP_RPCH&grp=0&a=
 	capture: confirm file `"`anything'"'
 	if (_rc~=0 | "`replace'"=="replace") {
 		copy "`url'" `htmlfile'
@@ -315,7 +314,7 @@ program define readOECD
 		filefilter `tt' `tf', from("<Code") to("\U")
 		import delimited using `tf', delim(`"<Code"', asstring) clear
 		gen prep = "Downloaded OECD codes from `oecdlocal' on "+regexs(1) if 			regexm(v1,`"<Prepared>([^<]*)</Prepared>"')
-		levelsof prep if ~mi(prep), local(plist)
+		levelsof prep if ~mi(prep), local(plist) clean
 		notes: `plist'
 		gen listid = regexs(1) if regexm(v1,`"List id="([^"]*)"')
 		gen listnum = sum(~mi(listid))

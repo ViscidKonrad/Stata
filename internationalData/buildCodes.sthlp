@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.0  22oct2015}{...}
+{* *! version 1.1  01may2017}{...}
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
@@ -49,10 +49,10 @@
 {it:Wikipedia} {browse "http://en.wikipedia.org/wiki/ISO_3166-1":ISO 3166-1}
 
 {phang}
-Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" forthcoming American Economic Review, available for download at {browse "http://www.rug.nl/research/ggdc/data/pwt/v81/the_next_generation_of_the_penn_world_table.pdf":www.ggdc.net/pwt}
+Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182, available for download at {browse "http://www.rug.nl/research/ggdc/data/pwt/v81/the_next_generation_of_the_penn_world_table.pdf":www.ggdc.net/pwt}
 
 {phang}
-Organisation for Economic Co-operation and Development {browse "http://stats.oecd.org/Index.aspx?DataSetCode=EO93_INTERNET":Economic Outlook No 93}
+Organisation for Economic Co-operation and Development {browse "http://stats.oecd.org/Index.aspx?DataSetCode=QNA":Quarterly National Accounts}
 
 {phang}
 The Conference Board {bf: Total Economy Database (TM)}, January 2013, {browse "http://www.conference-board.org/data/economydatabase/"}
@@ -61,7 +61,7 @@ The Conference Board {bf: Total Economy Database (TM)}, January 2013, {browse "h
 The World Bank {browse "http://data.worldbank.org/data-catalog/world-development-indicators":World Development Indicators}
 
 {phang}
-International Monetary Fund {browse "http://www.imf.org/external/pubs/ft/weo/2013/02/weodata/index.aspx":World Economic Outlook Database October 2013}
+International Monetary Fund {browse "http://www.imf.org/external/pubs/ft/weo/2017/01/weodata/index.aspx":World Economic Outlook Database April 2017}
 
 {title:Author}
 
@@ -71,4 +71,4 @@ David Rosnick, Center for Economic and Policy Research (rosnick@cepr.net)
 {title:Also see}
 
 {phang}
-{helpb wbopendata}
+{helpb wbopendata}{p_end}
