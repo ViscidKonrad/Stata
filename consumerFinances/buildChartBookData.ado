@@ -1,4 +1,4 @@
-*! version 0.4	29sep2017	David Rosnick
+*! version 0.5	29sep2017	David Rosnick
 program define buildChartBookData
 
 	syntax anything(name=year) [, REAL ADJINC CPIbase(real 0) VERIFY KEEP]
@@ -336,7 +336,7 @@ program define addDemographic
 		forvalues gg=9/11 {
 			lab def EDUC `=`gg'-5' "`gg'th grade", add
 		}
-		lab def 7 "12th grade, no diploma" 8 "High school graduate (or equivalent)" ///
+		lab def EDUC 7 "12th grade, no diploma" 8 "High school graduate (or equivalent)" ///
 			9 "Some college but no degree" 10 "Associate degree (occupational/vocational)" ///
 			11 "Associate degree (academic)" 12 "Bachelor's degree" 13 "Master's degree" ///
 			14 "Professional school degree" 15 "Doctoral degree", add
