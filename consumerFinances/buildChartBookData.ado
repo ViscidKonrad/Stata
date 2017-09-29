@@ -1,4 +1,4 @@
-*! version 0.3	09sep2014	David Rosnick
+*! version 0.4	29sep2017	David Rosnick
 program define buildChartBookData
 
 	syntax anything(name=year) [, REAL ADJINC CPIbase(real 0) VERIFY KEEP]
@@ -88,7 +88,8 @@ program define buildChartBookData
 				PAYVEOM PAYEDU1 PAYEDU2 PAYEDU3 PAYEDU4 PAYEDU5 PAYEDU6 PAYEDU7 ///
 				PAYILN1 PAYILN2 PAYILN3 PAYILN4 PAYILN5 PAYILN6 PAYILN7 PAYMARG ///
 				PAYINS PAYPEN1 PAYPEN2 PAYPEN3 PAYPEN4 PAYPEN5 PAYPEN6 FARMBUS_KG MORT1 ///
-				MORT2 MORT3 FARMBUS NHNFIN PENACCTWD MMDA MMMF FOODHOME FOODAWAY FOODDELV {
+				MORT2 MORT3 FARMBUS NHNFIN PENACCTWD MMDA MMMF FOODHOME FOODAWAY FOODDELV ///
+				PREPAID FAEQUITY {
 			replace `var' = `var'*CPIADJ if ~inlist(`var',-1,-2)
 		}
 	}
@@ -120,11 +121,16 @@ program define buildChartBookData
 	addSCFQuantiles NINCCAT=NORMINC, at(20(20)80 90)
 
 	addSCFQuantiles NINC2CAT=NORMINC, at(50 90)
-	
+	/*
 	addSCFQuantiles NW10CAT=NETWORTH, at(10(10)90)
 	addSCFQuantiles INC10CAT=INCOME, at(10(10)90)
 	addSCFQuantiles NINC10CAT=NORMINC, at(10(10)90)
-
+	*/
+	addSCFQuantiles NWPCTLECAT=NETWORTH, at(10(10)90 95 99)
+	addSCFQuantiles INCPCTLECAT=INCOME, at(10(10)90 95 99)
+	addSCFQuantiles NINCPCTLECAT=NORMINC, at(10(10)90 95 99)
+	
+	
 	di `"compressing data"'
 	qui compress
 	
@@ -219,7 +225,7 @@ program define getGlobals, rclass
 		return local PID = "X1"
 		return local IID = "XX1"
 		return local ID = "X1"
-		local curbase 1902
+		local curbase 1901
 		return scalar CPILAG = 1886/1808
 	}
 	else {
@@ -228,38 +234,46 @@ program define getGlobals, rclass
 		return local IID = "YY1"
 		return local ID = "Y1"
 	}
-	*	NOTE: CPI data from http://www.bls.gov/cpi/cpirsai1978-2013.pdf
+	*
+	*	NOTE: CPI data from https://www.bls.gov/cpi/research-series-allitems.pdf
+	*	curbase is September of year
+	*	cpilag is year average / previous year average
+	*
 	if (`year'==1992) {
-		local curbase 2116
-		return scalar CPILAG = 2103/2051
+		local curbase 2115
+		return scalar CPILAG = 2102/2051
 	}
 	if (`year'==1995) {
 		local curbase 2265
-		return scalar CPILAG = 2254/2201
+		return scalar CPILAG = 2253/2200
 	}
 	if (`year'==1998) {
-		local curbase 2405
-		return scalar CPILAG = 2397/2364
+		local curbase 2404
+		return scalar CPILAG = 2395/2363
 	}
 	if (`year'==2001) {
 		local curbase 2618
-		return scalar CPILAG = 2600/2529
+		return scalar CPILAG = 2601/2529
 	}
 	if (`year'==2004) {
-		local curbase 2788
-		return scalar CPILAG = 2774/2701
+		local curbase 2789
+		return scalar CPILAG = 2775/2702
 	}
 	if (`year'==2007) {
-		local curbase 3062
-		return scalar CPILAG = 3045/2961
+		local curbase 3063
+		return scalar CPILAG = 3046/2962
 	}
 	if (`year'==2010) {
-		local curbase 3208
-		return scalar CPILAG = 3202/3150
+		local curbase 3209
+		return scalar CPILAG = 3203/3152
 	}
 	if (`year'==2013) {
-		local curbase 3438
-		return scalar CPILAG = 3421/3372
+		local curbase 3440
+		return scalar CPILAG = 3422/3373
+	}
+	if (`year'==2016) {
+		local curbase 3547
+		return scalar CPILAG = 3562/3482
 	}
 	
 	if (`cpibase'==0) {
@@ -297,22 +311,41 @@ program define addDemographic
 	lab var AGECL "`: var lab AGE', categorical"
 	
 	*	education of the HH head and categorical variable
-	clonevar EDUC = X5901
-	lab def EDUC -1 "NO GRADES COMPLETED" 0 "Inap. (no spouse/partner)" ///
-		1 "1ST GRADE" 2 "2ND GRADE" 3 "3RD GRADE"
-	forvalues gg=4/12 {
-		lab def EDUC `gg' "`gg'TH GRADE", add
+	if (`year'<=2013) {
+		clonevar EDUC = X5901
+		lab def EDUC -1 "NO GRADES COMPLETED" 0 "Inap. (no spouse/partner)" ///
+			1 "1ST GRADE" 2 "2ND GRADE" 3 "3RD GRADE"
+		forvalues gg=4/12 {
+			lab def EDUC `gg' "`gg'TH GRADE", add
+		}
+		lab def EDUC 13 "1 YEAR OF COLLEGE", add
+		forvalues cc=2/4 {
+			lab def EDUC `=`cc'+12' "`cc' YEARS OF COLLEGE", add
+		}
+		lab def EDUC 17 "GRADUATE SCHOOL", add
+		lab val EDUC EDUC
+
+		gen byte EDCL = cond(X5904==1,4, ///
+			cond(EDUC>=13,3, ///
+			cond(inlist(X5902,1,2),2,1)))
 	}
-	lab def EDUC 13 "1 YEAR OF COLLEGE", add
-	forvalues cc=2/4 {
-		lab def EDUC `=`cc'+12' "`cc' YEARS OF COLLEGE", add
+	else {
+		clonevar EDUC = X5931
+		lab def EDUC -1 "Less than 1st grade" 0 "Inap. (no spouse/partner)" ///
+			1 "1st, 2nd, 3rd, or 4th grade" 2 "5th or 6th grade" 3 "7th or 8th grade"
+		forvalues gg=9/11 {
+			lab def EDUC `=`gg'-5' "`gg'th grade", add
+		}
+		lab def 7 "12th grade, no diploma" 8 "High school graduate (or equivalent)" ///
+			9 "Some college but no degree" 10 "Associate degree (occupational/vocational)" ///
+			11 "Associate degree (academic)" 12 "Bachelor's degree" 13 "Master's degree" ///
+			14 "Professional school degree" 15 "Doctoral degree", add
+		
+		gen byte EDCL = cond(inrange(EDUC,12,15),4, ///
+			cond(inrange(EDUC,9,11),3, ///
+			cond(inrange(X5932,1,2) | EDUC==8,2,1)))
 	}
-	lab def EDUC 17 "GRADUATE SCHOOL", add
-	lab val EDUC EDUC
 	
-	gen byte EDCL = cond(X5904==1,4, ///
-		cond(EDUC>=13,3, ///
-		cond(inlist(X5902,1,2),2,1)))
 	lab def EDCL 1 "no high school diploma/GED" 2 "high school diploma or GED" ///
 		3 "some college" 4 "college degree"
 	lab val EDCL EDCL
@@ -374,11 +407,14 @@ program define addDemographic
 	*	race/ethnicity
 	if (`year'>=1998) {
 		gen byte RACECL = 1+(X6809~=1 | X6810~=5)	
+		gen byte RACECL4 = (X6809==1 & X6810==5) + 2*(X6809==2 & X6810==5) ///
+			+ 3*(X6809==3 & X6810==5) + 4*(X6809==-7 | X6810==1)
 		gen byte RACE = X6809
 		replace RACE = 5 if ~inlist(RACE,1,2,3,4)
 	}
 	else {
 		gen byte RACECL = 1+(X5909~=5)
+		gen byte RACECL4= (X5909==5) + 2*(X5909==4) + 3*(X5909==3) + 4*(X5909<=2)
 		gen byte RACE = 6-X5909
 		replace RACE = 5 if ~inlist(RACE,1,2,3,4)
 	}
@@ -582,16 +618,7 @@ program define addAttitudinal
 	*   household had any payments more than 60 days past due in last year
 	gen byte LATE60:YESNO=(X3005==1)
 	lab var LATE60 "Has household had any payments more than 60 days past due in last year?"
-	
-	*	turndown for credit, feared denial, or either
-	gen byte TURNDOWN:YESNO=(X407==1)
-	gen byte FEARDENIAL:YESNO=(X409==1)
-	gen byte TURNFEAR:YESNO = TURNDOWN==1 | FEARDENIAL==1
-	
-	lab var TURNDOWN "Has been turned down for credit?"
-	lab var FEARDENIAL "Has feared denial of credit?"
-	lab var TURNFEAR "Has been turned down for, or feared denial of credit?"
-	
+		
 	*	have a payday loan
 	gen byte HPAYDAY:YESNO = 0
 	if (`year'>=2007) {
@@ -606,6 +633,128 @@ program define addAttitudinal
 	}
 	lab var BNKRUPLAST5 "Has a bankruptcy in the last five years?"
 	
+	*	PEU knowledge of personal finance
+	if (`year'>=2016) {
+		clonevar KNOWL = X7556
+	}
+	else {
+		gen byte KNOWL = 0
+	}
+	lab def KNOWL -1 "Not at all knowledgeable" 0 "Not asked" 10 "Very knowledgeable"
+	lab var KNOWL "Knowledge of personal finance?"
+	*	PEU willing to take fin risk
+	gen byte YESFINRISK:YESNO = (X3014==1)
+	gen byte NOFINRISK:YESNO = (X3014==4)
+	lab var YESFINRISK "Willing to take SUBSTANTIAL financial risk wen saving?"
+	lab var NOFINRISK "NOT willing to take financial risk saving?"
+	notes YESFINRISK: recode of X3014
+	notes NOFINRISK: recode of X3014
+	
+	*	credit application
+	
+	gen byte CRDAPP:YESNO = 0
+	gen byte TURNDOWN:YESNO = X407==1
+	gen byte FEARDENIAL:YESNO = X409==1
+	if (`year'>=2016) {
+		forvalues ii=433/440 {
+			replace CRDAPP = 1 if X`ii'==1
+		}
+		replace FEARDENIAL = X441==3 | X409==1
+	}
+	else {
+		replace CRDAPP = X7131==1
+	}
+	gen byte TURNFEAR:YESNO = TURNDOWN==1 | FEARDENIAL==1
+	lab var CRDAPP "Has applied for any credit in past 12 months?"
+	lab var TURNDOWN "Has been turned down for credit?"
+	lab var FEARDENIAL "Has feared denial of credit?"
+	lab var TURNFEAR "Has been turned down for, or feared denial of credit?"
+	notes CRDAPP: 5 year lookback prior to 2016
+	notes TURNDOWN: recode of X407
+	notes TURNDOWN: 5 year lookback prior to 2016
+	notes FEARDENIAL: recode of X409
+	notes FEARDENIAL: 5 year lookback prior to 2016
+	notes TURNFEAR: recode of X407 and X409
+	notes TURNFEAR: 5 year lookback prior to 2016
+	
+	*	foreclosure
+	gen byte FORECLLAST5:YESNO = 0
+	if (`year'>=2016) {
+		replace FORECLLAST5 = X3033>=`year'-5
+	}
+	lab var FORECLLAST5 "Foreclosed on in last five years?"
+	notes FORECLLAST5: recode of X3033
+	
+	*	if experience a financial emergency, how would deal with it?
+	gen byte EMERGBORR:YESNO = 0
+	gen byte EMERGSAV:YESNO = 0
+	gen byte EMERGPSTP:YESNO = 0
+	gen byte EMERGCUT:YESNO = 0
+	if (`year'>=2016) {
+		replace EMERGBORR = X7775==1
+		replace EMERGSAV = X7775==2
+		replace EMERGPSTP = X7775==3
+		replace EMERGCUT = X7775==4
+	}
+	lab var EMERGBORR "BORROW FROM OTHERS to deal with financial emergency?"
+	lab var EMERGSAV "SPEND FROM OWN SAVINGS to deal with financial emergency?"
+	lab var EMERGPSTP "POSTPONE PAYMENTS to deal with financial emergency?"
+	lab var EMERGCUT "CUT BACK SPENDING to deal with financial emergency?"
+	*	If borrow, would it be...
+	gen byte HBORRFF:YESNO = 0
+	gen byte HBORRCC:YESNO = 0
+	gen byte HBORRALT:YESNO = 0
+	gen byte HBORRFIN:YESNO = 0
+	if (`year'>=2016) {
+		replace HBORRFF = inrange(X7776,1,2) | inrange(X7777,1,2)
+		replace HBORRCC = inrange(X7776,3,3) | inrange(X7777,3,3)
+		replace HBORRALT = inrange(X7776,4,9) | inrange(X7777,4,9)
+		replace HBORRFIN = inrange(X7776,10,11) | inrange(X7777,10,11)
+	}
+	lab var HBORRFF "If borrow, from FRIEND/FAMILY?"
+	lab var HBORRCC "If borrow, from CREDIT CARD?"
+	lab var HBORRALT "If borrow, from ALTERNATIVE SOURCE?"
+	lab var HBORRFIN "If borrow, from FINANCIAL SERVICES?"
+	*	If spend out of savings, would it be...
+	gen byte HSAVFIN:YESNO = 0
+	gen byte HSAVNFIN:YESNO = 0
+	if (`year'>=2016) {
+		replace HSAVFIN = inlist(X7778,1,2,4) | inlist(X7779,1,2,4)
+		replace HSAVNFIN = inlist(X7778,3,5,6,7,8,9) | inlist(X7779,3,5,6,7,8,9)
+	}
+	lab var HSAVFIN "If spend, from OWN FINANCIAL ACCOUNTS?"
+	lab var HSAVNFIN "If spend, from NONFINANCIAL SERVICES?"
+	*	If postpone payments, would it be...
+	gen byte HPSTPPAY:YESNO = 0
+	gen byte HPSTPLN:YESNO = 0
+	gen byte HPSTPOTH:YESNO = 0
+	if (`year'>=2016) {
+		replace HPSTPPAY = inrange(X7780,1,3) | inrange(X7781,1,3)
+		replace HPSTPLN = inrange(X7780,7,11) | inrange(X7781,7,11)
+		replace HPSTPOTH = inrange(X7780,4,6) | inrange(X7781,4,6)
+	}
+	lab var HPSTPPAY "If postpone payments, for PURCHASES?"
+	lab var HPSTPLN "If postpone payments, for LOANS?"
+	lab var HPSTPOTH "If postpone payments, for OTHER PAYMENTS?"
+	*	If cut back, would it be...
+	gen byte HCUTFOOD = 0
+	gen byte HCUTENT = 0
+	gen byte HCUTOTH = 0
+	if (`year'>=2016) {
+		replace HCUTFOOD = inrange(X7782,1,2) | inrange(X7783,1,2)
+		replace HCUTENT = inrange(X7782,3,4) | inrange(X7783,3,4)
+		replace HCUTOTH = inrange(X7782,5,8) | inrange(X7783,5,8)
+	}
+	lab var HCUTFOOD "If cut back, on FOOD PURCHASES?"
+	lab var HCUTENT "If cut back, on ENTERTAINMENT?"
+	lab var HCUTOTH "If cut back, on OTHER PURCHASES?"
+	
+	*	financial literacy: count number correct
+	gen byte FINLIT = 0
+	if (`year'>=2016) {
+		replace FINLIT = (X7558==5) + (X7559==1) + (X7560==5)
+	}
+	lab var FINLIT "Number of correct answers given"
 	
 end
 
@@ -614,24 +763,40 @@ program define addServices
 
 	args year
 	
-	gen byte BSHOPNONE:YESNO=(X7100==1)
+	if (`year'>=2016) {
+		gen byte BSHOPNONE:YESNO=inlist(X7561,-1,1,2,3)
+		notes BSHOPNONE: recode of X7561
+		gen byte BSHOPGRDL:YESNO=inlist(X7561,9,10)
+		notes BSHOPGRDL: recode of X7561
+		gen byte BSHOPMODR:YESNO=inlist(X7561,4,5,6,7,8)
+		notes BSHOPMODR: recode of X7561
+		gen byte ISHOPNONE:YESNO=inlist(X7562,-1,1,2,3)
+		notes ISHOPNONE: recode of X7562
+		gen byte ISHOPGRDL:YESNO=inlist(X7562,9,10)
+		notes ISHOPGRDL: recode of X7562
+		gen byte ISHOPMODR:YESNO=inlist(X7562,4,5,6,7,8)
+		notes ISHOPMODR: recode of X7562
+	}
+	else {
+		gen byte BSHOPNONE:YESNO=(X7100==1)
+		notes BSHOPNONE: recode of X7100
+		gen byte BSHOPGRDL:YESNO=(X7100==5)
+		notes BSHOPGRDL: recode of X7100
+		gen byte BSHOPMODR:YESNO=inlist(X7100,2,3,4)
+		notes BSHOPMODR: recode of X7100
+		gen byte ISHOPNONE:YESNO=(X7111==1)
+		notes ISHOPNONE: recode of X7111
+		gen byte ISHOPGRDL:YESNO=(X7111==5)
+		notes ISHOPGRDL: recode of X7111
+		gen byte ISHOPMODR:YESNO=inlist(X7111,2,3,4)
+		notes ISHOPMODR: recode of X7111
+	}
 	lab var BSHOPNONE "ALMOST NO SEARCHING for best terms of credit?"
-	notes BSHOPNONE: recode of X7100
-	gen byte BSHOPGRDL:YESNO=(X7100==5)
 	lab var BSHOPGRDL "A GREAT DEAL OF SEARCHING for best terms of credit?"
-	notes BSHOPGRDL: recode of X7100
-	gen byte BSHOPMODR:YESNO=inlist(X7100,2,3,4)
 	lab var BSHOPMODR "MODERATE SEARCHING for best terms of credit?"
-	notes BSHOPMODR: recode of X7100
-	gen byte ISHOPNONE:YESNO=(X7111==1)
 	lab var ISHOPNONE "ALMOST NO SEARCHING for best terms of saving?"
-	notes ISHOPNONE: recode of X7111
-	gen byte ISHOPGRDL:YESNO=(X7111==5)
 	lab var ISHOPGRDL "A GREAT DEAL OF SEARCHING for best terms of saving?"
-	notes ISHOPGRDL: recode of X7111
-	gen byte ISHOPMODR:YESNO=inlist(X7111,2,3,4)
 	lab var ISHOPMODR "MODERATE SEARCHING for best terms of saving?"
-	notes ISHOPMODR: recode of X7111
 	
 	*	information sources used in borrowing and investment
 	if (`year'>=1998) {
@@ -808,6 +973,18 @@ program define addFinAssets
 		notes `var': from X3530
 	}
 	
+	*	prepaid cards
+	gen PREPAID = 0
+	gen byte HPREPAID:YESNO = 0
+	if (`year'>=2016) {
+		replace PREPAID = max(0,X7596)
+		replace HPREPAID = X7594==1 | X7648==1
+	}
+	lab var PREPAID "amount on prepaid cards"
+	lab var HPREPAID "Has prepaid cards"
+	notes PREPAID: new question in 2016
+	notes PREPAID: new question in 2016
+	
 	*	savings accounts
 	gen SAVING = 0
 	if (`year'<=2001) {
@@ -884,7 +1061,7 @@ program define addFinAssets
 	lab var HCALL "Has call account?"
 	
 	*	all types of transaction accounts (liquid assets)
-	gen LIQ=CHECKING+SAVING+MMA+CALL
+	gen LIQ=CHECKING+SAVING+MMA+CALL+PREPAID
 	lab var LIQ "liquid assets: amount in transaction accounts"
 	
 	*	have any types of transaction accounts
@@ -1438,13 +1615,42 @@ program define addFinAssets
 	lab val HEQUITY YESNO
 	lab var HEQUITY "Has stock equity?"
 	
-	*	equity in directly-held stocks, stock mutual funds,
+	*	equity in directly-held stocks, some types of mutual funds,
 	*	combination mutual funds, and other mutual funds
 	gen DEQ=STOCKS+STMUTF+0.5*COMUTF
-	if (`year'>-2004) {
+	if (`year'>=2004) {
 		replace DEQ = DEQ+OMUTF
 	}
 	lab var DEQ "equity in directly-held stocks, stock mutual funds, and comination mutual funds"
+
+	*	equity in directly-held stocks, some types of mutual funds,
+	*	plus equity in OTHMA, plus equity in IRAs, and C-Corps
+	gen FAEQUITY = STOCKS+cond(`year'==1998,STMUTF+0.5*COMUTF,NMMF)+max(0,X3420)
+	forvalues ii=31/`32+(`year'<2010)' {
+		replace FAEQUITY = FAEQUITY ///
+			+(max(0,X`ii'29)+max(0,X`ii'24)-max(0,X`ii'26)*(X`ii'27==5) ///
+				+max(0,X`ii'21)*inlist(X`ii'22,1,6))*(X`ii'19==4)
+	}
+	if (`year'>=2004) {
+		forvalues ii=6555(8)6571 {
+			replace FAEQUITY = FAEQUITY ///
+				+(X`=`ii'-4'+X`=`ii'-3'+X`=`ii'-2'+X`=`ii'-1')*((X`ii'==1)+(X`ii'==3)*X`=`ii'+1'/10000)
+		}
+	}
+	else {
+		replace FAEQUITY = FAEQUITY ///
+			+IRAKH*((X3631==2)+0.5*inlist(X3631,5,6)+0.3*(X3631==4))
+	}
+	if (`year'>=1998) {
+		replace FAEQUITY = FAEQUITY ///
+			+ANNUIT*((X6581==1)+inlist(X6581,3,30)*max(0,X6582)/10000) ///
+			+TRUSTS*((X6591==1)+inlist(X6591,3,30)*max(0,X6592)/10000)
+	}
+	else {
+		replace FAEQUITY = FAEQUITY ///
+			+OTHMA*((X3947==1)+0.5*inlist(X3947,5,6)+0.3*inlist(X3947,4,-7))	
+	}
+	lab var FAEQUITY "equity in directly-held stocks, some types of mutual funds, plus equity in OTHMA, plus equity in IRAs, and C-Corps"
 	
 	*	equity held in savings accounts such as 529s, Coverdells or other
     *	types with investment choice
@@ -1534,7 +1740,7 @@ program define addFinAssets
 	lab var NTRAD "number of trades per year"
 	
 	*	total financial assets
-	gen FIN=LIQ+CDS+NMMF+STOCKS+BOND+RETQLIQ+SAVBND+CASHLI+OTHMA+OTHFIN
+	gen FIN=LIQ+CDS+NMMF+STOCKS+BOND+RETQLIQ+SAVBND+CASHLI+OTHMA+OTHFIN+PREPAID
 	lab var FIN "total financial assets"
 	*   have any financial assets
 	gen byte HFIN=(FIN>0)
@@ -1895,7 +2101,9 @@ program define addDebts
 	lab var HRESDBT "Has other residential real estate debt?"
 	
 	*	credit card debt
-	local cclist 427 413 421 430
+	local cclist 427 413 421
+	if (`year'<2016) {
+		local cclist `cclist' 430
 	if (`year'<2010) {
 		local cclist `cclist' 424
 	}
@@ -2266,7 +2474,9 @@ program define addPayments
 			forvalues ii=15(23)61 {
 				local kk = `ii'+2
 				addPeriodic PAYEDU`nl' if X7`jj'`ii'>0 & `year'>=1992, v(7`jj'`ii') mult(1)
-				addPeriodic PAYEDU`nl' if X7`jj'`ii'<=0 & X7`jj'`kk'>0 & `year'>=1992, v(7`jj'`kk') mult(1)
+				if (`year'<2016) {
+					addPeriodic PAYEDU`nl' if X7`jj'`ii'<=0 & X7`jj'`kk'>0 & `year'>=1992, v(7`jj'`kk') mult(1)
+				}
 				local ++nl
 			}
 		}
@@ -2589,6 +2799,12 @@ program define addLoanSums
 
 	args year
 	
+	if (`year'==2016 {
+		forvalues ii=0/5 {
+			replace X`=`ii'+9203' = 45 if X`=2*`ii'+7421'==1
+		}
+	}
+	
 	if (`year'>=2010) {
 	
 		local PURPOSES PURPCC PURPMORT X918  X1018 PURPOP ///
@@ -2774,7 +2990,7 @@ program define addLoanSums
 		gen LLOAN`ii' = 0
 	}
 	local lwcode (11=1) (12=2) (13=3) (14 21 43 56=4) (16 17 92 94 29=5) (18 19 31=6) ///
-		(20 26 27 85=7) (15 22/25 30 32 39/41 44/47 57 61 80 81 95 99=8) ///
+		(20 26 27 85=7) (15 22/25 30 32 39/41 44/47 57 61 62 80 81 95 99 101=8) ///
 		(33/35 42 93=9) (38 50/52 90 98=10) (96=11) (-7 -1 28 37 75 97=12) (else=.)
 	forvalues ii=1/`ps' {
 		local lw: word `ii' of `LENTYPE'
