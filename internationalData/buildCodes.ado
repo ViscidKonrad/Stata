@@ -120,14 +120,11 @@ program define readPWT
 	syntax anything [, REPLACE PWTlocal(string asis)] 
 	
 	tempfile pf cj
-	local url http://www.rug.nl/ggdc/docs/pwt81.zip
+	local url http://www.rug.nl/ggdc/docs/pwt90.xlsx
 	
 	capture: confirm file `"`anything'"'
 	if (_rc~=0 | "`replace'"=="replace") {
-*		! curl  -c `cj' `url' > `pf'
-		copy `"`url'"' `pf', replace
-		unzipfile `pf', replace
-		use pwt81, clear
+		import excel using `"`url'"', sheet(Data) clear firstrow case(preserve)
 		egen ctag = tag(countrycode)
 		keep if ctag
 		keep country*
