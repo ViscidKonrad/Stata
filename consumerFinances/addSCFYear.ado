@@ -1,5 +1,4 @@
-*! version 0.3	02oct2017	David Rosnick
-capture: program drop addSCFYear
+*! version 0.4	02oct2017	David Rosnick
 program define addSCFYear
 
 	args year

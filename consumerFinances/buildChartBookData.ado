@@ -1,5 +1,4 @@
-*! version 0.5	02oct2017	David Rosnick
-capture: program drop buildChartBookData
+*! version 0.6	02oct2017	David Rosnick
 program define buildChartBookData
 
 	syntax anything(name=year) [, REAL ADJINC CPIbase(real 0) VERIFY KEEP]
@@ -227,7 +226,7 @@ program define getGlobals, rclass
 		return local IID = "XX1"
 		return local ID = "X1"
 		local curbase 1901
-		return scalar CPILAG = 1886/1808
+		return scalar CPILAG = 1886/1807
 	}
 	else {
 		return local PIID = "YY1"
@@ -660,14 +659,16 @@ program define addAttitudinal
 	gen byte CRDAPP:YESNO = 0
 	gen byte TURNDOWN:YESNO = X407==1
 	gen byte FEARDENIAL:YESNO = X409==1
-	if (`year'>=2016) {
-		forvalues ii=433/440 {
-			replace CRDAPP = 1 if X`ii'==1
+	if (`year'>=1995) {
+		if (`year'>=2016) {
+			forvalues ii=433/440 {
+				replace CRDAPP = 1 if X`ii'==1
+			}
+			replace FEARDENIAL = X441==3 | X409==1
 		}
-		replace FEARDENIAL = X441==3 | X409==1
-	}
-	else {
-		replace CRDAPP = X7131==1
+		else {
+			replace CRDAPP = X7131==1
+		}
 	}
 	gen byte TURNFEAR:YESNO = TURNDOWN==1 | FEARDENIAL==1
 	lab var CRDAPP "Has applied for any credit in past 12 months?"
@@ -1647,9 +1648,20 @@ program define addFinAssets
 			+IRAKH*((X3631==2)+0.5*inlist(X3631,5,6)+0.3*(X3631==4))
 	}
 	if (`year'>=1998) {
-		replace FAEQUITY = FAEQUITY ///
-			+ANNUIT*((X6581==1)+inlist(X6581,3,30)*max(0,X6582)/10000) ///
-			+TRUSTS*((X6591==1)+inlist(X6591,3,30)*max(0,X6592)/10000)
+		if (`year'>=2004) {
+			local alist 3
+			if (`year'>=2010) {
+				local alist 3,30
+			}
+			replace FAEQUITY = FAEQUITY ///
+				+ANNUIT*((X6581==1)+inlist(X6581,`alist')*max(0,X6582)/10000) ///
+				+TRUSTS*((X6591==1)+inlist(X6591,`alist')*max(0,X6592)/10000)
+		}
+		else {
+			replace FAEQUITY = FAEQUIT ///
+				+ANNUIT*((X6826==1)+0.5*inlist(X6826,5,6)+0.3*inlist(X6826,-7))	///
+				+TRUSTS*((X6841==1)+0.5*inlist(X6841,5,6)+0.3*inlist(X6841,-7))
+		}
 	}
 	else {
 		replace FAEQUITY = FAEQUITY ///
