@@ -2,7 +2,7 @@ v 3
 d consumerFinances: Produce variables for the FRB Survey of Consumer Finances chartbooks.
 d Program by David Rosnick, Center for Economic and Policy Research
 d
-d Distribution-Date: 29sep2017
+d Distribution-Date: 02oct2017
 d
 d Support: email rosnick@cepr.net
 f consumerFinances/addSCFQuantiles.ado
