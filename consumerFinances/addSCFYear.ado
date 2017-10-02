@@ -1,10 +1,11 @@
-*! version 0.1	09sep2014	David Rosnick
+*! version 0.3	02oct2017	David Rosnick
+capture: program drop addSCFYear
 program define addSCFYear
 
 	args year
 	
 	if ("`year'"=="") {
-		local year 2013
+		local year 2016
 	}
 	if (mod(`year'-1989,3)~=0 | `year'<1989) {
 		di as error "year must be selected from every third year starting in 1989."
@@ -16,7 +17,7 @@ program define addSCFYear
 	if (_rc~=0) {
 		capture: confirm file Data/scfp`year's.zip
 		if (_rc~=0) {
-			copy http://www.federalreserve.gov/econresdata/scf/files/scfp`year's.zip Data/scfp`year's.zip
+			copy https://www.federalreserve.gov/econres/files/scfp`year's.zip Data/scfp`year's.zip
 		}
 		cd Data
 		unzipfile scfp`year's.zip

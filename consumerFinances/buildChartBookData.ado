@@ -1,4 +1,5 @@
-*! version 0.5	29sep2017	David Rosnick
+*! version 0.5	02oct2017	David Rosnick
+capture: program drop buildChartBookData
 program define buildChartBookData
 
 	syntax anything(name=year) [, REAL ADJINC CPIbase(real 0) VERIFY KEEP]
@@ -161,7 +162,7 @@ program define getSCF
 		local idir: dir . files "*.dta"
 		capture: confirm file scf`year's.zip
 		if (_rc~=0 | "`refresh'"=="refresh") {
-			copy `"http://www.federalreserve.gov/econresdata/scf/files/scf`year's.zip"' scf`year's.zip, `replace'
+			copy `"https://www.federalreserve.gov/econres/files/scf`year's.zip"' scf`year's.zip, `replace'
 		}
 		unzipfile scf`year's.zip, replace
 		local ndir: dir . files "*.dta"
@@ -273,7 +274,7 @@ program define getGlobals, rclass
 	}
 	if (`year'==2016) {
 		local curbase 3547
-		return scalar CPILAG = 3562/3482
+		return scalar CPILAG = 3526/3482
 	}
 	
 	if (`cpibase'==0) {
@@ -311,40 +312,44 @@ program define addDemographic
 	lab var AGECL "`: var lab AGE', categorical"
 	
 	*	education of the HH head and categorical variable
-	if (`year'<=2013) {
-		clonevar EDUC = X5901
-		lab def EDUC -1 "NO GRADES COMPLETED" 0 "Inap. (no spouse/partner)" ///
-			1 "1ST GRADE" 2 "2ND GRADE" 3 "3RD GRADE"
-		forvalues gg=4/12 {
-			lab def EDUC `gg' "`gg'TH GRADE", add
-		}
-		lab def EDUC 13 "1 YEAR OF COLLEGE", add
-		forvalues cc=2/4 {
-			lab def EDUC `=`cc'+12' "`cc' YEARS OF COLLEGE", add
-		}
-		lab def EDUC 17 "GRADUATE SCHOOL", add
-		lab val EDUC EDUC
-
-		gen byte EDCL = cond(X5904==1,4, ///
-			cond(EDUC>=13,3, ///
-			cond(inlist(X5902,1,2),2,1)))
-	}
-	else {
+	if (`year'>=2016) {
 		clonevar EDUC = X5931
-		lab def EDUC -1 "Less than 1st grade" 0 "Inap. (no spouse/partner)" ///
-			1 "1st, 2nd, 3rd, or 4th grade" 2 "5th or 6th grade" 3 "7th or 8th grade"
-		forvalues gg=9/11 {
-			lab def EDUC `=`gg'-5' "`gg'th grade", add
-		}
-		lab def EDUC 7 "12th grade, no diploma" 8 "High school graduate (or equivalent)" ///
-			9 "Some college but no degree" 10 "Associate degree (occupational/vocational)" ///
-			11 "Associate degree (academic)" 12 "Bachelor's degree" 13 "Master's degree" ///
-			14 "Professional school degree" 15 "Doctoral degree", add
-		
 		gen byte EDCL = cond(inrange(EDUC,12,15),4, ///
 			cond(inrange(EDUC,9,11),3, ///
 			cond(inrange(X5932,1,2) | EDUC==8,2,1)))
 	}
+	else {
+		gen byte EDUC = cond( ///
+			X5901==-1, -1, cond( ///
+			inrange(X5901,1,4), 1, cond( ///
+			inrange(X5901,5,6), 2, cond( ///
+			inrange(X5901,7,8), 3, cond( ///
+			X5901==9, 4, cond( ///
+			X5901==10, 5, cond( ///
+			X5901==11, 6, cond( ///
+			X5901==12 & inlist(X5902,0,5), 7, cond( ///
+			X5901==12 & inlist(X5902,1,2), 8, cond( ///
+			X5901>=13 & X5904==5, 9, cond( ///
+			inrange(X5901,13,15) & X5905==11, 10, cond( ///
+			X5901>=13 & inlist(X5905,1,10), 11, cond( ///
+			(X5901>=13 & X5905==2) | (X5901==16 & X5905==11), 12, cond( ///
+			(X5901>=13 & inlist(X5905,3,9)) | (X5901==17 & X5905==11), 13, cond( ///
+			X5901>=13 & inlist(X5905,5,6), 14, cond( ///
+			X5901>=13 & inlist(X5905,4,12), 15, .))))))))))))))))
+		gen byte EDCL = cond(inrange(EDUC,12,15),4, ///
+			cond(inrange(EDUC,9,11),3, ///
+			cond(inrange(X5902,1,2),2,1)))
+			
+	}
+	lab def EDUC -1 "Less than 1st grade" 0 "Inap. (no spouse/partner)" ///
+		1 "1st, 2nd, 3rd, or 4th grade" 2 "5th or 6th grade" 3 "7th or 8th grade"
+	forvalues gg=9/11 {
+		lab def EDUC `=`gg'-5' "`gg'th grade", add
+	}
+	lab def EDUC 7 "12th grade, no diploma" 8 "High school graduate (or equivalent)" ///
+		9 "Some college but no degree" 10 "Associate degree (occupational/vocational)" ///
+		11 "Associate degree (academic)" 12 "Bachelor's degree" 13 "Master's degree" ///
+		14 "Professional school degree" 15 "Doctoral degree", add
 	
 	lab def EDCL 1 "no high school diploma/GED" 2 "high school diploma or GED" ///
 		3 "some college" 4 "college degree"
@@ -1626,7 +1631,7 @@ program define addFinAssets
 	*	equity in directly-held stocks, some types of mutual funds,
 	*	plus equity in OTHMA, plus equity in IRAs, and C-Corps
 	gen FAEQUITY = STOCKS+cond(`year'==1998,STMUTF+0.5*COMUTF,NMMF)+max(0,X3420)
-	forvalues ii=31/`32+(`year'<2010)' {
+	forvalues ii=31/`=32+(`year'<2010)' {
 		replace FAEQUITY = FAEQUITY ///
 			+(max(0,X`ii'29)+max(0,X`ii'24)-max(0,X`ii'26)*(X`ii'27==5) ///
 				+max(0,X`ii'21)*inlist(X`ii'22,1,6))*(X`ii'19==4)
@@ -2068,7 +2073,7 @@ program define addDebts
 	local iadd 1621
 	local ibase 1417
 	local iskip 100
-	if (`year'==2013) {
+	if (`year'>=2013) {
 		local iadd 1342
 		local ibase 1318
 		local iskip 19
@@ -2104,6 +2109,7 @@ program define addDebts
 	local cclist 427 413 421
 	if (`year'<2016) {
 		local cclist `cclist' 430
+	}
 	if (`year'<2010) {
 		local cclist `cclist' 424
 	}
@@ -2799,12 +2805,6 @@ program define addLoanSums
 
 	args year
 	
-	if (`year'==2016 {
-		forvalues ii=0/5 {
-			replace X`=`ii'+9203' = 45 if X`=2*`ii'+7421'==1
-		}
-	}
-	
 	if (`year'>=2010) {
 	
 		local PURPOSES PURPCC PURPMORT X918  X1018 PURPOP ///
@@ -3036,11 +3036,11 @@ program define addLoanInfo
 	*	assign codes for type of lender where type is not directly known
 	di `" - addUnknownLenders"'
 	qui addUnknownLenders
-
+	
 	*	summarize loan balances by purpose and lender
 	di `" - addLoanSums `year'"'
-	qui addLoanSums `year'	
-
+	qui addLoanSums `year'
+	
 end
 
 capture: program drop verifySCF
@@ -3101,5 +3101,5 @@ program define verifySCF, rclass
 	return local N_epsilon `"`nepsilon'"'
 	return local N_fail `"`nerrvars'"'
 	return scalar epsilon = epsilon
-
+	
 end
