@@ -1,7 +1,7 @@
-*! version 0.9	18apr2017	David Rosnick
+*! version 1.0	13nov2017	David Rosnick
 program define getWEO
 
-	syntax [anything] [, WEOYear(integer 2017) WEOVersion(integer 1) Start(integer 1980) ///
+	syntax [anything] [, WEOYear(integer 2017) WEOVersion(integer 2) Start(integer 1980) ///
 		End(integer 2022) ISO MAD MPD OECD TED WDI WEO Numeric ALPHA2 ALPHA3 Countryname RAW CLEAN ESTimates UNITS SCALE NOTES]
 
 	tempfile mtemp htmlfile mrmfile
@@ -52,7 +52,7 @@ program define getWEO
 	*		- pr (pr1) indicates upper (lower) button
 	*		- x (y) indicates pixels across (down) from upper left corner of button
 	*
-	*	* year defaults depend on WEO version
+	*	* year defaults depend on WEO version and data availability
 	*
 	levelsof WEONumeric, local(wcodes) s("%2C")
 	local vpars = subinstr("`variables'"," ","%2C",.)
@@ -62,7 +62,7 @@ program define getWEO
 	local url `baseurl'&`fixedpars'&`optpars'
 
 	copy "`url'" `htmlfile', replace text
-	if (c(os)=="MacOSX") {
+	if (c(version)<14 & c(os)=="MacOSX") {
 		if (c(charset)=="mac") {
 			! iconv -c -f ISO-8859-1 -t MACROMAN `htmlfile' > `mrmfile'
 		}
@@ -74,7 +74,7 @@ program define getWEO
 		local mrmfile `htmlfile'
 	}
 	import delimited using `mrmfile', delim("\t") bindquotes(nobind) stripquotes(no) clear case(preserve)
-	replace Country = subinstr(Country,"Â","",.)
+	replace Country = subinstr(Country,"Â¬","",.)
 		
 	if ("`raw'"~="raw") {
 		rename Country WEOCountryName

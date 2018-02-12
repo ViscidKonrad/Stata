@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1  30oct2013}{...}
+{* *! version 0.1  13nov2017}{...}
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
@@ -17,7 +17,7 @@
 {title:Description}
 
 {pstd}
-{cmd:dumpChars} simply displays the current character set.
+{cmd:dumpChars} simply displays the current character set. With the transition to Unicode, not especially useful as of Stata 14.
 
 {marker examples}{...}
 {title:Examples:}
