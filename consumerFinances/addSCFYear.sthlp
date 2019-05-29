@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1  09sep2014}{...}
+{* *! version 0.2  29may2019}{...}
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
@@ -20,7 +20,7 @@
 {cmd: addSCFYear} simply loads up the Survey of Consumer Finances extract data produced by the Federal Reserve. If necessary, it downloads the data, creating a Data subdirectory in the current working directory.
 
 {pstd}
-{it: year} is the year of the survey, available every three years back to 1989. Default is 2013.
+{it: year} is the year of the survey, available every three years back to 1989. Default is 2016.
 
 {marker examples}{...}
 {title:Example:}

@@ -1,4 +1,4 @@
-*! version 0.6	02oct2017	David Rosnick
+*! version 0.7	29may2019	David Rosnick
 program define buildChartBookData
 
 	syntax anything(name=year) [, REAL ADJINC CPIbase(real 0) VERIFY KEEP]
@@ -11,19 +11,20 @@ program define buildChartBookData
 	scalar CPILAG = r(CPILAG)
 	scalar CPIADJ = r(CPIADJ)
 	scalar CPIBASE = r(CPIBASE)
+	local ID `r(ID)'
+	local IID `r(IID)'
 	getSCF `year', clear
-	keep X* `r(ID)' `r(IID)'
-	keep X* `r(ID)' `r(IID)'
+	keep X* `ID' `IID'
 	
 	*	sample and weight adjustments
-	keep if `r(ID)'>0 & `r(IID)'>0 & X42001>0
+	keep if `ID'>0 & `IID'>0 & X42001>0
 	clonevar WGT = X42001
 	replace WGT = WGT/5
 	lab var WGT "sample weight"
 	notes WGT: from X42001
 	clonevar WGT0 = X42001
 	notes WGT0: original weight
-	svyset `r(IID)' [pw=WGT]
+	svyset `IID' [pw=WGT]
 	
 	*   consider all FINANCE COMPANIES reported in mortgage 
     *		grids to be MORTGAGE COMPANIES
@@ -872,6 +873,9 @@ program define addServices
 	gen byte INTERNET = 0
 	foreach ii of local ilist {
 		capture: replace INTERNET = INTERNET | `ii'==12
+	}
+	if (`year'>=2016) {
+		replace INTERNET = X7593==1
 	}
 	replace INTERNET = INTERNET | (BINTERNET==1 | IINTERNET==1)
 	lab val INTERNET YESNO
@@ -1757,7 +1761,7 @@ program define addFinAssets
 	lab var NTRAD "number of trades per year"
 	
 	*	total financial assets
-	gen FIN=LIQ+CDS+NMMF+STOCKS+BOND+RETQLIQ+SAVBND+CASHLI+OTHMA+OTHFIN+PREPAID
+	gen FIN=LIQ+CDS+NMMF+STOCKS+BOND+RETQLIQ+SAVBND+CASHLI+OTHMA+OTHFIN // +PREPAID
 	lab var FIN "total financial assets"
 	*   have any financial assets
 	gen byte HFIN=(FIN>0)

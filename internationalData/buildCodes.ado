@@ -296,7 +296,7 @@ program define readOECD
 	syntax anything [, REPLACE OECDlocal(string asis)]
 
 	if (`"`oecdlocal'"'=="") {
-		local oecdlocal `"http://stats.oecd.org/restsdmx/sdmx.ashx/GetDataStructure/QNA"'
+		local oecdlocal `"https://stats.oecd.org/restsdmx/sdmx.ashx/GetDataStructure/QNA"'
 	}
 	capture: confirm file `"`anything'"'
 	if (_rc~=0 | "`replace'"=="replace") {

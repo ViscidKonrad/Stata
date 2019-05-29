@@ -1,4 +1,4 @@
-*! version 0.4	02oct2017	David Rosnick
+*! version 0.5	29may2019	David Rosnick
 program define addSCFYear
 
 	args year
