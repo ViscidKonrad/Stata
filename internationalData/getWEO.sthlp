@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.9  18apr2017}{...}
+{* *! version 2.0  01jul2019}{...}
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
@@ -17,11 +17,11 @@
 {synopthdr}
 {synoptline}
 {syntab:Source}
-{synopt :{opt weoy:ear(#)}}WEO database year; default is {cmd:weoyear(2017)}{p_end}
+{synopt :{opt weoy:ear(#)}}WEO database year; default is {cmd:weoyear(2019)}{p_end}
 {synopt :{opt weov:ersion(#)}}WEO database number; default is {cmd:weoversion(1)}{p_end}
 
 {synopt :{opt s:tart(#)}}first year of data to retrieve; default is {cmd:start(1980)}{p_end}
-{synopt :{opt e:nd(#)}}last year of data to retrieve; default is {cmd:end(2022)}{p_end}
+{synopt :{opt e:nd(#)}}last year of data to retrieve; default is {cmd:end(2024)}{p_end}
 
 {syntab:Country identification}
 {synopt :{it:{help getWEO##countryvar_options:countryvar_options}}}options to help identify the source and type of country variable{p_end}
@@ -42,7 +42,7 @@
 {cmd:getWEO} retrieves data from the International Monetary Fund's World Economic Outlook. For every country listed in {it:countryvar}, {cmd:getWEO} reports the IMF data listed in {it:datanames}.
 
 {pstd}
-{it:countryvar} is a variable that may contain three-digit numeric codes, two- or three-letter alpha codes, or country names.  These codes may correspond to the official ISO 3166-1 standards, IMF codes, or one of several other data sources. See
+{it:countryvar} is a variable that may contain numeric codes, three-letter alpha codes, or country names.  These codes may correspond to the any of several other data sources. See
 {it:{help getWEO##countryvar_options:countryvar_options}} for details.
 
 {pstd}
@@ -57,7 +57,7 @@
 {synopt :{opt GGXWDN_NGDP}}General government net debt (Percent of GDP){p_end}
 {synoptline}
 {pstd}
-A full list of the latest variables is available at {browse "http://www.imf.org/external/pubs/ft/weo/2017/01/weodata/index.aspx":World Economic Outlook Database April 2017}
+A full list of the latest variables is available at {browse "http://www.imf.org/external/pubs/ft/weo/2019/01/weodata/index.aspx":World Economic Outlook Database April 2019}
 
 {pstd}
 Note that {cmd:getWEO} currently requires the code/name crosswalk (CountryCodes.dta) to translate {it:countryvar} to WEO country codes. See
@@ -78,7 +78,7 @@ Note that {cmd:getWEO} currently requires the code/name crosswalk (CountryCodes.
 {opt start(#)} indicates the first year of data to be retrieved. In its current format, the WEO databases go back to 1980.
 
 {phang}
-{opt end(#)} indicates the last year of data to be retrieved. In its most recent incarnations, the WEO databases go forward five years ({it:e.g.,} 2018 for 2013 WEOs.)
+{opt end(#)} indicates the last year of data to be retrieved. In its most recent incarnations, the WEO databases go forward five years ({it:e.g.,} 2024 for 2019 WEOs.)
 
 {marker countryvar_options}{...}
 {dlgtab:Country identification}

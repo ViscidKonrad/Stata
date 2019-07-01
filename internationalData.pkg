@@ -2,11 +2,13 @@ v 3
 d internationalData.  Package to handle country codes and WEO data
 d Programs by David Rosnick, Center for Economic and Policy Research
 d
-d Distribution-Date: 12feb2018
+d Distribution-Date: 01jul2019
 d
 d Support: email rosnick@cepr.net
 f internationalData/buildCodes.ado
 f internationalData/buildCodes.sthlp
+f internationalData/CountryCodes.dta
+f internationalData/CountryCodes.xls
 f internationalData/getWEO.ado
 f internationalData/getWEO.sthlp
 f internationalData/idCodes.ado

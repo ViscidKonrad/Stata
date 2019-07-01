@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.2  22oct2015}{...}
+{* *! version 2.0  01jul2019}{...}
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
@@ -17,18 +17,17 @@
 {synopthdr}
 {synoptline}
 {syntab:Source}
-{synopt :{opt iso}}{it:countryvar} may identify an official ISO code or name{p_end}
-{synopt :{opt oecd}}{it:countryvar} may identify a code or name from the OECD Economic Outlook{p_end}
-{synopt :{opt pwt}}{it:countryvar} may identify a name from the Penn World Tables{p_end}
+{synopt :{opt gcb}}{it:countryvar} may identify a name from the Global Carbon Budget{p_end}
+{synopt :{opt pwt}}{it:countryvar} may identify a code or name from the Penn World Tables{p_end}
 {synopt :{opt ted}}{it:countryvar} may identify a code or name from the Total Economy Database{p_end}
+{synopt :{opt unsd}}{it:countryvar} may identify a code or name from the United Nations Statistics Division{p_end}
 {synopt :{opt wdi}}{it:countryvar} may identify a code or name from the World Bank's World Development Indicators{p_end}
 {synopt :{opt weo}}{it:countryvar} may identify a code or name from the IMF World Economic Outlook{p_end}
 
 {syntab:Format}
-{synopt :{opt alpha2}}{it:countryvar} may identify a two-letter country code{p_end}
-{synopt :{opt alpha3}}{it:countryvar} may identify a three-letter country code{p_end}
-{synopt :{opt c:ountryname}}{it:countryvar} may identify a country name{p_end}
-{synopt :{opt n:umeric}}{it:countryvar} may identify a numeric code{p_end}
+{synopt :{opt name}}{it:countryvar} may identify a country name{p_end}
+{synopt :{opt code}}{it:countryvar} may identify a three-letter country code{p_end}
+{synopt :{opt num}}{it:countryvar} may identify an integer country code{p_end}
 {synoptline}
 {pstd}Any number of options are allowed
 
@@ -66,7 +65,7 @@ Format options limit the search for possible identifier formats to any of those 
 {phang2}{cmd:. replace Country="CAN" in 2}{p_end}
 
 {pstd}Identify canonical name for {bf:Country}{p_end}
-{phang2}{cmd:. idCodes Country, iso}{p_end}
+{phang2}{cmd:. idCodes Country, weo num}{p_end}
 
 {pstd}Canonical name may be indeterminate if insufficiently specified{p_end}
 {phang2}{cmd:. idCodes Country}{p_end}
@@ -75,7 +74,7 @@ Format options limit the search for possible identifier formats to any of those 
 {phang2}{cmd:. idCodes Country, weo}{p_end}
 
 {pstd}Identification failure-- {bf:Country} is not numeric{p_end}
-{phang2}{cmd:. idCodes Country, numeric}{p_end}
+{phang2}{cmd:. idCodes Country, num}{p_end}
 
 {marker results}{...}
 {title:Stored results}

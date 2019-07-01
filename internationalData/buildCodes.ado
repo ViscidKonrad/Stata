@@ -1,333 +1,627 @@
-*! version 1.3	12feb2018	David Rosnick
+*! version 2.0 01jul2019	David Rosnick
 program define buildCodes
 
-	syntax anything [, REPLACE LOCAL]
-	
-	if (regexm(`"`anything'"',".dta$")) {
-		capture: confirm file `"`anything'"'
-	}
-	else {
-		capture: confirm file `"`anything'.dta"'
-	}
+	syntax anything(name=filename) [, REPLACE CLEAR]
+
+	capture: confirm file `filename'.dta
 	if (_rc~=0 | "`replace'"=="replace") {
+
+	tempfile df cf
 	
-		if ("`local'"=="local") {
-			local local , `replace'
-		}
+	*	Start with UNSD codes
+	getUNData, clear
+	d
+	sample 1, count by(CountryID)
+	keep Country*
+	ren CountryID num_UNSD
+	ren Country name_UNSD
+	lab var num_UNSD "UNSD numeric country code"
+	lab var name_UNSD "UNSD country name"
+	*	set match variable
+	gen MatchName = name_UNSD
+	*	Not correct, but useful anyway
+	replace MatchName = "Czech Republic" if regexm(MatchName,"Czechia")
+	save `cf'
 	
-		tempfile isofile weofile wbfile tedfile oecdfile pwtfile allfiles
+	*	Add WB-WDI codes
+	getWDIData, clear
+	d
+	sample 1, count by(countrycode)
+	keep country*
+	ren countrycode code_WDI
+	ren countryname name_WDI
+	lab var code_WDI "World Bank WDI country code"
+	lab var name_WDI "World Bank WDI country name"
+	*	set match variable
+	gen tempName = name_WDI
+	*	Corrections
+	replace tempName = "State of Palestine" if regexm(tempName,"West Bank")
+	save `df'
+	*	Match to other names
+	fuzzyMatch tempName MatchName using `cf', sim t(0.1)
+	*	False positives
+	drop if regexm(MatchName,"Cook Islands") | regexm(MatchName,"Zanzibar")
+	*	Merge with other names
+	merge 1:1 tempName using `df', nogen
+	replace MatchName = tempName if mi(MatchName)
+	drop tempName
+	merge 1:1 MatchName using `cf'
+	*	Checks
+	gsort -sim
+	li MatchName name_WDI sim if _merge==3 & sim<1
+	li MatchName name_WDI if _merge==1
+	li MatchName if _merge==2
+	drop sim _merge
+	*	Incorrect, but useful
+	replace MatchName = "Swaziland" if regexm(MatchName,"Eswatini")
+	save `cf', replace	
 
-		readWikiISO `isofile'
+	*	Add GCB codes
+	getGCBData, clear
+	d
+	sample 1, count by(name_GCB)
+	lab var name_GCB "Global Carbon Budget country name"
+	lab var name_GCB2 "Global Carbon Budget country name"
+	*	set match variable
+	gen tempName = name_GCB2
+	*	Corrections
+	replace tempName = "United States" if tempName=="USA"
+	replace tempName = "Macedonia" if regexm(tempName,"Macedonia")
+	replace tempName = "DR Congo" if regexm(tempName,"Democratic Repu")
+	save `df', replace
+	*	Match to other names
+	fuzzyMatch tempName MatchName using `cf', sim t(0.3)
+	*	False positives
+	drop if regexm(MatchName,"Cayman")
+	*	Merge with other names
+	merge 1:1 tempName using `df', nogen
+	replace MatchName = tempName if mi(MatchName)
+	drop tempName
+	merge 1:1 MatchName using `cf'
+	*	Checks
+	gsort -sim
+	li MatchName name_GCB2 sim if _merge==3 & sim<1
+	li MatchName name_GCB2 if _merge==1
+	li MatchName if _merge==2
+	drop sim _merge
+	save `cf', replace	
 
-		readWEO `weofile'
-		gen ISOAlpha3 = WEOAlpha3
-		merge 1:1 ISOAlpha3 using `isofile'
-		qui levelsof WEOAlpha3 if _merge==1, local(isolevs) clean
-		if ("`isolevs'"~="") {
-			local inum : list sizeof isolevs
-			local addnote `"WEO data include non-ISO-official alpha-3 code`=cond(`inum'>1,"s","")' "'
-			foreach iso of local isolevs {
-				qui levelsof WEOCountryName if WEOAlpha3=="`iso'", local(ccode) clean
-				local addnote `"`addnote' `iso' (`ccode')"'
-			}
-			notes WEOAlpha3: `addnote'
-		}
-		drop _merge
-		save `allfiles', replace
-		notes
-										
-		readPWT `pwtfile', pwt(pwt90)
-		gen ISOAlpha3 = PWTAlpha3
-		merge 1:1 ISOAlpha3 using `allfiles', nogen
-		save `allfiles', replace
-		notes
-						
-		readOECD `oecdfile'
-		gen ISOAlpha3 = OECDAlpha3 if OECDAlpha3~="DEW"
-		merge 1:1 ISOAlpha3 using `allfiles', nogen
-		save `allfiles', replace
-		notes
-		
-		readWDI `wbfile'
-		gen ISOAlpha3 = WDIAlpha3
-		replace ISOAlpha3 = "UVK" if WDIAlpha3 == "XKX"
-		merge 1:1 ISOAlpha3 using `allfiles'
-		qui levelsof WDIAlpha3 if _merge==1 | ISOAlpha3=="UVK", local(isolevs) clean
-		if ("`isolevs'"~="") {
-			local inum : list sizeof isolevs
-			local addnote `"WDI data include non-ISO-official alpha-3 code`=cond(`inum'>1,"s","")' "'
-			foreach iso of local isolevs {
-				qui levelsof WDICountryName if WDIAlpha3=="`iso'", local(ccode) clean
-				local addnote `"`addnote' `iso' (`ccode')"'
-			}
-			notes WDIAlpha3: `addnote'
-		}
-		drop _merge
-		save `allfiles', replace
-		notes
-		
-		readTED `tedfile'
-		gen ISOAlpha3 = TEDAlpha3
-		replace ISOAlpha3 = "CHN" if substr(TEDA,1,3)=="CHN"
-		merge n:1 ISOAlpha3 using `allfiles'
-		qui levelsof TEDAlpha3 if _merge==1, local(isolevs) clean
-		if ("`isolevs'"~="") {
-			local inum : list sizeof isolevs
-			local addnote `"TED data include non-ISO-official alpha-3 code`=cond(`inum'>1,"s","")' "'
-			foreach iso of local isolevs {
-				qui levelsof TEDCountryName if TEDAlpha3=="`iso'", local(ccode) clean
-				local addnote `"`addnote' `iso' (`ccode')"'
-			}
-			notes TEDAlpha3: `addnote'
-		}
-		drop _merge
-		save `allfiles', replace
-		notes
-		
-		compress
-		replace ISOAlpha3 = "" if mi(ISOC)
-		lab var ISOAlpha3 "ISO 3166-1 three-letter country code"
-		local vorder ISONumeric WEONumeric 
-		local vorder `vorder' ISOAlpha2 TEDAlpha3 WDIAlpha2
-		local vorder `vorder' ISOAlpha3 OECDAlpha3 PWTAlpha3 WDIAlpha3 WEOAlpha3
-		local vorder `vorder' ISOCountryName OECDCountryName PWTCountryName TEDCountryName WDICountryName WEOCountryName
-		order `vorder' 
-		sort  `vorder'
-		save `"`anything'"', replace
-		d
-		notes
+	*	Add TED codes
+	getTEDData, clear
+	d
+	sample 1, count by(ISO)
+	keep ISO COU
+	ren ISO code_TED
+	ren COU name_TED
+	lab var code_TED "Conference Board TED country code"
+	lab var name_TED "Conference Board TED country name"
+	*	set match variable
+	gen tempName = name_TED
+	*	Corrections
+	replace tempName = "D.R. of the Congo" if regexm(tempName,"DR Congo")
+	replace tempName = "Syran Arab Rep" if regexm(tempName,"Syria")
+	replace tempName = "Republic of Korea" if regexm(tempName,"South Korea")
+	replace tempName = "Iran Islamic Rep" if regexm(tempName,"Iran")
+	replace tempName = "Bolivia Plurinational" if regexm(tempName,"Bolivia")
+	replace tempName = "Kyrgyzstan" if regexm(tempName,"Kyrg")
+	save `df', replace
+	*	Match to other names
+	fuzzyMatch tempName MatchName using `cf', sim // t(0.3)
+	*	False positives
+	drop if regexm(MatchName,"Montenegro")
+	*	Merge with other names
+	merge 1:1 tempName using `df', nogen
+	replace MatchName = tempName if mi(MatchName)
+	drop tempName
+	merge 1:1 MatchName using `cf'
+	*	Checks
+	gsort -sim
+	li MatchName name_TED sim if _merge==3 & sim<1
+	sort MatchName
+	li MatchName name_TED if _merge==1
+	li MatchName if _merge==2
+	drop sim _merge
+	save `cf', replace	
+	
+	*	Add WEO codes
+	getWEOData, clear
+	d
+	sample 1, count by(ISO)
+	keep WEOC-Cou
+	ren WEOC num_WEO
+	ren ISO code_WEO
+	ren Cou name_WEO
+	lab var num_WEO "I.M.F. WEO numeric country code"
+	lab var code_WEO "I.M.F. WEO country code"
+	lab var name_WEO "I.M.F. WEO country name"
+	destring num_WEO, force replace
+	*	set match variable
+	gen tempName = name_WEO
+	*	Corrections
+	replace tempName = "Republic of Korea" if regexm(tempName,"Korea")
+	replace tempName = "Republic of Moldova" if regexm(tempName,"Moldova")
+	replace tempName = "Syrian Arab Republic" if regexm(tempName,"Syria")
+	replace tempName = "Swaziland" if regexm(tempName,"Eswatini")
+	save `df', replace
+	*	Match to other names
+	fuzzyMatch tempName MatchName using `cf', sim // t(0.3)
+	*	False positives
+	*	Merge with other names
+	merge 1:1 tempName using `df', nogen
+	replace MatchName = tempName if mi(MatchName)
+	drop tempName
+	merge 1:1 MatchName using `cf'
+	*	Checks
+	gsort -sim
+	li MatchName name_WEO sim if _merge==3 & sim<1
+	sort MatchName
+	li MatchName name_WEO if _merge==1
+	li MatchName if _merge==2
+	drop sim _merge
+	save `cf', replace	
+	
+	*	Add PWT codes
+	getPWTData, clear
+	d
+	sample 1, count by(countrycode)
+	keep country*
+	ren countrycode code_PWT
+	ren country name_PWT
+	lab var code_PWT "GGDC PWT country code"
+	lab var name_PWT "GGDC PWT country name"
+	*	set match variable
+	gen tempName = name_PWT
+	*	Corrections
+	replace tempName = "Swaziland" if regexm(tempName,"Eswatini")
+	save `df', replace
+	*	Match to other names
+	fuzzyMatch tempName MatchName using `cf', sim // t(0.3)
+	*	False positives
+	*	Merge with other names
+	merge 1:1 tempName using `df', nogen
+	replace MatchName = tempName if mi(MatchName)
+	drop tempName
+	merge 1:1 MatchName using `cf'
+	*	Checks
+	gsort -sim
+	li MatchName name_PWT sim if _merge==3 & sim<1
+	sort MatchName
+	li MatchName name_PWT if _merge==1
+	li MatchName if _merge==2
+	drop sim _merge
+	save `cf', replace	
 
+	order *, alpha
+	sort MatchName
+	drop MatchName
+	compress
+	save `filename', replace
+	export excel using `filename', replace firstrow(var)
 	}
 	else {
-		use `"`anything'"', clear
+		use CodeData/Clean/PWT, `clear'
 	}
 
 end
 
-program define readPWT
+program define fuzzyMatch
 
-	syntax anything [, REPLACE PWTlocal(string asis) XLSX] 
+	* This program does a fuzzy match of string variables
+	*	- it is mostly a wrapper for an iterated —matchit—, putting aside
+	*		mutual best matches in each iteration
+	*	namelist is <master data varname> [<using data varname>]
+	*	threshold is the similarity cutoff-- any below this will be dropped
+	*	sim keeps the similarity value
+
+	syntax namelist(min=1 max=2) using/ [,Threshold(real 0) SIM]
 	
-	tempfile pf cj
-	local suffix dta
-	if (c(version)<14 | "`xlsx'"=="xlsx") {
-		local suffix xlsx
+	tokenize `namelist'
+	if (`"`2'"'=="") {
+		*	Assume same variable name if missing
+		local 2 `1'
 	}
-	local url https://www.rug.nl/ggdc/docs/pwt90.`suffix'
-	
-	capture: confirm file `"`anything'"'
-	if (_rc~=0 | "`replace'"=="replace") {
-		if ("`suffix'"=="xlsx") {
-			import excel using `"`url'"', sheet(Data) clear firstrow case(preserve)
+	macro li _1 _2
+	macro li _using
+	tempvar sim1 sim2 ismatch
+	tempfile tf
+	*	Generate lists of unique values of each variable
+	forvalues ii=1/2 {
+		tempvar id`ii'
+		tempfile tf`ii'
+		if (`ii'>1) {
+			use `using', clear
 		}
-		else {
-			capture: use pwt90, clear
-			if (_rc~=0) {
-				copy `"`url'"' pwt90.dta, replace
-			}
-			use pwt90, clear
-		}
-		egen ctag = tag(countrycode)
-		keep if ctag
-		keep country*
-		ren countrycode PWTAlpha3
-		ren country PWTCountryName
-		lab var PWTCou "PWT country name"
-		lab var PWTAlpha3 "PWT three-letter country code"
-		notes: Downloaded PWT codes from `url' on TS
+		sample 1, count by(``ii'')
+		keep ``ii''
+		sort ``ii''
+		gen `id`ii'' = _n
 		compress
-		save `"`anything'"', replace
+		save `tf`ii''
 	}
-	else {
-		use `"`anything'"', clear
+	*	Use —matchit— to generate similarity scores
+	matchit `id2' `2' using `tf1', idu(`id1') txtu(`1') override t(`threshold')
+	local iter 0
+	count
+	while (r(N) & `iter'<2000) {
+		bys `2': egen `sim2' = max(sim)
+		bys `1': egen `sim1' = max(sim)
+		* identify mutual best matches
+		gen `ismatch' = `sim2'==sim & `sim1'==sim
+		drop `sim2' `sim1'
+		preserve
+		* add mutual best matches to tempfile
+		keep if `ismatch'
+		drop `ismatch'
+		if ("`replace'"=="replace") {
+			append using `tf'
+		}
+		save `tf', `replace'
+		restore
+		* drop matched countries from active data
+		bys `2': egen `sim2' = total(`ismatch')
+		bys `1': egen `sim1' = total(`ismatch')
+		drop if `sim2' | `sim1'
+		drop `sim2' `sim1' `ismatch'
+		local replace replace
+		local ++iter
+		count
 	}
-	notes
-
+	use `tf', clear
+	gsort -sim `1' `2'
+	*	only keep similarity score if requested
+	if ("`sim'"=="") {
+		drop sim
+	}
+	
 end
 
-program define readWikiISO
+program define getREST
 
-	syntax anything [, REPLACE]
+	syntax [, REPLACE FETCH]
+
+	if ("`fetch'"=="fetch") {
+		local replace replace
+	}
 	
-	tempfile htmlfile mrmfile destination
-	
-	local url https://en.wikipedia.org/wiki/ISO_3166-1
-	
-	capture: confirm file `"`anything'"'
+	capture: confirm file CodeData/Clean/REST.dta
 	if (_rc~=0 | "`replace'"=="replace") {
-		copy "`url'" `htmlfile', replace text
-		! file `htmlfile'
-		if (c(version)<14 & c(os)=="MacOSX") {
-			if (c(charset)=="mac") {
-				! iconv -c -f UTF8 -t MACROMAN `htmlfile' > `mrmfile'
-			}
-			else {
-				! iconv -c -f UTF8 -t LATIN1 `htmlfile' > `mrmfile'
-			}
+		capture: mkdir CodeData
+		capture: mkdir CodeData/Clean
+		capture: confirm file CodeData/Raw/REST.xml
+		if (_rc~=0 | "`fetch'"=="fetch") {
+			capture: mkdir CodeData/Raw
+			local URL http://data.un.org/ws/rest/codelist
+			copy `"`URL'"' CodeData/Raw/REST.xml, replace
 		}
-		else {
-			local mrmfile `htmlfile'
-		}
-		import delimited using `mrmfile', delim("||||", asstring) bindquotes(nobind) stripquotes(no) clear charset("utf8") 
-		replace v1 = regexr(v1,`"<span style="display[^>]*>[^>]+>"',"")
-		gen ISOCountryName = regexs(2) if regexm(v1,`"<td>(<span[^>]*>)?<a href="[^:>]+>([^<]+)</a>(</span>)?(<sup.*</sup>)?</td>"')
-		gen ISOAlpha2 = regexs(1) if ~mi(ISOCou) & regexm(v1[_n+1],`"<td><a href="/wiki/ISO_3166-1_alpha-2#[A-Z][A-Z]" title="ISO 3166-1 alpha-2"><span [^>]*>([A-Z][A-Z])</span></a></td>"')
-		gen ISOAlpha3 = regexs(1) if ~mi(ISOCou) & regexm(v1[_n+2],`"<td><span [^>]*>([A-Z][A-Z][A-Z])</span></td>"')
-		gen ISONumeric = regexs(1) if ~mi(ISOCou) & regexm(v1[_n+3],`"<td><span [^>]*>([0-9][0-9][0-9])</span></td>"')
-		keep if ~mi(ISOC) & ~mi(ISOAlpha2)
+		clear
+		tempfile tf
+		gen merge_code = "_placeholder_"
+		save `tf'
+		import delimited CodeData/Raw/REST.xml, clear enc("utf-8") delim("|||", asstring)
+		gen agency = regexs(1) if regexm(v1,`"agencyID=\"([^"]+)\""')
+		gen id = regexs(1) if regexm(v1,`"<Codelist id=\"([^"]+)\""')
+		replace agency = agency[_n-1] if mi(agency)
+		replace id = id[_n-1] if mi(id)
+		gen agency_id = agency+"__"+id
+		gen code = regexs(1) if regexm(v1,`"<Code id=\"([^"]+)\""')
+		gen name = regexs(1) if ~mi(code) & regexm(v1[_n+1],`"<Name[^>]+>([^<]+)</Name>"')
+		levelsof agency_id if regexm(id,"AREA"), clean local(ail)
+		keep if ~mi(name)
 		drop v1
-		order *, alpha
-		lab var ISON "ISO 3166-1 numeric country code"
-		lab var ISOCou "ISO 3166   English short country name"
-		lab var ISOAlpha2 "ISO 3166-1 two-letter country code"
-		lab var ISOAlpha3 "ISO 3166-1 three-letter country code"
-		lab data "ISO 3166-1 Country Codes"
-		notes: Downloaded ISO 3166-1 codes from `url' on TS
-		notes: - Only official assignments included
-		compress
-		save `"`anything'"', replace
+		foreach ai of local ail {
+			/*
+			preserve
+			keep if agency_id=="`ai'"
+			ren code CODE__`ai'
+			ren name NAME__`ai'
+			keep CODE NAME
+			gen merge_code = CODE
+			merge 1:1 merge_code using `tf', nogen
+			save `tf', replace
+			restore
+			*/
+			tab name if agency_id=="`ai'"
+		}
+	}
 	}
 	else {
-		use `"`anything'"', clear
+		use `filename', `clear'
 	}
-	notes
+	
 
 end
 
-program define readWEO
+program define getUNData
 
-	syntax anything [, REPLACE]
+	syntax [, REPLACE FETCH CLEAR]
 
-	tempfile htmlfile mrmfile destination
-
-	local url https://www.imf.org/external/pubs/ft/weo/2017/02/weodata/weoreptc.aspx?sy=1980&ey=1980&scc=1&sic=1&sort=country&ds=.&br=1&c=512%2c672%2c914%2c946%2c612%2c137%2c614%2c546%2c311%2c962%2c213%2c674%2c911%2c676%2c193%2c548%2c122%2c556%2c912%2c678%2c313%2c181%2c419%2c867%2c513%2c682%2c316%2c684%2c913%2c273%2c124%2c868%2c339%2c921%2c638%2c948%2c514%2c943%2c218%2c686%2c963%2c688%2c616%2c518%2c223%2c728%2c516%2c836%2c918%2c558%2c748%2c138%2c618%2c196%2c624%2c278%2c522%2c692%2c622%2c694%2c156%2c142%2c626%2c449%2c628%2c564%2c228%2c565%2c924%2c283%2c233%2c853%2c632%2c288%2c636%2c293%2c634%2c566%2c238%2c964%2c662%2c182%2c960%2c359%2c423%2c453%2c935%2c968%2c128%2c922%2c611%2c714%2c321%2c862%2c243%2c135%2c248%2c716%2c469%2c456%2c253%2c722%2c642%2c942%2c643%2c718%2c939%2c724%2c644%2c576%2c819%2c936%2c172%2c961%2c132%2c813%2c646%2c199%2c648%2c733%2c915%2c184%2c134%2c524%2c652%2c361%2c174%2c362%2c328%2c364%2c258%2c732%2c656%2c366%2c654%2c734%2c336%2c144%2c263%2c146%2c268%2c463%2c532%2c528%2c944%2c923%2c176%2c738%2c534%2c578%2c536%2c537%2c429%2c742%2c433%2c866%2c178%2c369%2c436%2c744%2c136%2c186%2c343%2c925%2c158%2c869%2c439%2c746%2c916%2c926%2c664%2c466%2c826%2c112%2c542%2c111%2c967%2c298%2c443%2c927%2c917%2c846%2c544%2c299%2c941%2c582%2c446%2c474%2c666%2c754%2c668%2c698&s=NGDP_RPCH&grp=0&a=
-	capture: confirm file `"`anything'"'
+	if ("`fetch'"=="fetch") {
+		local replace replace
+	}
+	
+	capture: confirm file CodeData/Clean/UN.dta
 	if (_rc~=0 | "`replace'"=="replace") {
-		copy "`url'" `htmlfile'
-		if (c(version)<14 & c(os)=="MacOSX") {
-			if (c(charset)=="mac") {
-				! iconv -c -f ISO-8859-1 -t MACROMAN `htmlfile' > `mrmfile'				
-			}
-			else {
-				! iconv -c -f ISO-8859-1 -t LATIN1 `htmlfile' > `mrmfile'
-			}
+
+		tempfile tf
+		capture: mkdir CodeData
+		capture: mkdir CodeData/Clean
+
+		*	GNI (countrynames may be out of date)
+		capture: confirm file CodeData/Raw/GNI_UN.xls
+		if (_rc~=0 | "`fetch'"=="fetch") {
+			capture: mkdir CodeData/Raw
+			local URL https://unstats.un.org/unsd/amaapi/api/file/23
+			copy `"`URL'"' CodeData/Raw/GNI_UN.xls, replace
+		}
+		import excel using CodeData/Raw/GNI_UN, sheet(Download-GNIcurrent-NCU-countri) ///
+			cellrange(a3) firstrow `clear'
+		drop Curren
+		ren * GNI*
+		ren GNICountry* Country*
+		local yc 1970
+		foreach var of varlist GNI* {
+			ren `var' GNI`yc'
+			local ++yc
+		}
+		reshape long GNI, i(CountryID) j(Year)
+		compress
+		order CountryID Country
+		sort CountryID Year
+		save `tf'
+		
+		*	GDP
+		capture: confirm file CodeData/Raw/GDP_UN.xls
+		if (_rc~=0 | "`fetch'"=="fetch") {
+			capture: mkdir CodeData/Raw
+			local URL https://unstats.un.org/unsd/amaapi/api/file/1
+			copy `"`URL'"' CodeData/Raw/GDP_UN.xls, replace
+		}
+		import excel using CodeData/Raw/GDP_UN, sheet(Download-GDPcurrent-NCU-countri) ///
+			cellrange(a3) firstrow clear
+		keep if regexm(Ind,"\(GDP\)")
+		drop Curren Ind
+		ren * GDP*
+		ren GDPCountry* Country*
+		local yc 1970
+		foreach var of varlist GDP* {
+			ren `var' GDP`yc'
+			local ++yc
+		}
+		reshape long GDP, i(CountryID) j(Year)
+		compress
+		order CountryID Country
+		sort CountryID Year
+		
+		*	merge
+		merge 1:1 CountryID Year using `tf', nogen
+		drop if regexm(Country,"(Former)")
+		save CodeData/Clean/UN, replace
+
+	}
+	else {
+		use CodeData/Clean/UN, `clear'
+	}
+
+end
+
+program define getWDIData
+
+	syntax [, REPLACE FETCH CLEAR]
+
+	if ("`fetch'"=="fetch") {
+		local replace replace
+	}
+	
+	capture: confirm file CodeData/Clean/WDI.dta
+	if (_rc~=0 | "`replace'"=="replace") {
+
+		capture: mkdir CodeData
+		capture: mkdir CodeData/Clean
+
+		*	Working-Age (15-64) Population
+		*	 - percent of total population
+		capture: confirm file CodeData/Raw/WAP_WDI
+		if (_rc~=0 | "`fetch'"=="fetch") {
+			capture: mkdir CodeData/Raw
+			wbopendata, indicator(SP.POP.1564.TO.ZS) long `clear' full
+			save CodeData/Raw/WAP_WDI, replace
 		}
 		else {
-			local mrmfile `htmlfile'
+			use CodeData/Raw/WAP_WDI, `clear'
 		}
-		import delimited using `mrmfile', ///
-			delim("\t") bindquotes(nobind) stripquotes(no) clear case(preserve)
-		*replace Country = subinstr(Country,"Â","",.)
-		keep WEOCountryCode ISO Country
-		destring WEOCountryCode, force replace
-		rename WEOCountryCode WEONumeric
-		rename ISO WEOAlpha3
-		rename Country WEOCountryName
-		keep if ~mi(WEOAlpha3)
-		set obs `=_N+1'
-		replace WEOC = "Somalia" in l
-		replace WEOAlpha3 = "SOM" in l
+		drop if region=="NA"
+		keep country* capital lat longi year sp
+		compress
+		sort countrycode year
+		save CodeData/Clean/WDI, replace
+	}
+	else {
+		use CodeData/Clean/WDI, clear
+	}
+	
+end
+
+program define getGCBData
+
+	syntax [, REPLACE FETCH CLEAR]
+
+	if ("`fetch'"=="fetch") {
+		local replace replace
+	}
+	
+	capture: confirm file CodeData/Clean/GCBcodes.dta
+	if (_rc~=0 | "`replace'"=="replace") {
+
+		capture: mkdir CodeData
+		capture: mkdir CodeData/Clean
+
+		*	Carbon Emissions
+		local filename CodeData/Raw/National_Carbon_Emissions_2018v1.0.xlsx
+		capture: confirm file `filename'
+		if (_rc~=0 | "`fetch'"=="fetch") {
+			di as error "Please download National Carbon Emissions Data located at " as result "https://www.icos-cp.eu/GCP/2018" as error " to " as result "`filename'"
+		}
 		
-		lab var WEONumeric "IMF's WEO numeric country code"
-		lab var WEOCountryName "IMF's WEO country name"
-		lab var WEOAlpha3 "IMF's WEO three-letter country code"
-		notes: Downloaded WEO codes from `url' on TS
-		notes: - Added Somalia (SOM) to WEO codes though neither numeric country code nor data is available
+		tempfile tf
+		import excel using `filename', sheet(Consumption Emissions) cellrange(a9:hf68) ///
+			firstrow case(preserve) `clear'
+		ren * CC*
+		ren CCA Year
+		destring CC*, force replace
+		reshape long CC, i(Year) j(CountryName) string
+		destring CC, force replace
 		compress
-		save `"`anything'"', replace
+		save `tf'
+		
+		import excel using `filename', sheet(Territorial Emissions) cellrange(a17:hf76) ///
+			firstrow case(preserve) clear
+		ren * TC*
+		ren TCA Year
+		destring TC*, force replace
+		reshape long TC, i(Year) j(CountryName) string
+		destring TC, force replace
+		compress
+		merge 1:1 CountryName Year using `tf', nogen
+		
+		compress
+		order CountryName Year
+		sort CountryName Year
+		save CodeData/Clean/GCB, replace
+		
+		import excel using `filename', sheet(Consumption Emissions) cellrange(b8:hf9) ///
+			case(preserve) clear
+		unab allvars: *
+		local nv: list sizeof allvars
+		set obs `=2+`nv''
+		local cn 3
+		foreach var of local allvars {
+			replace B = `var'[1] in `cn'
+			replace C = `var'[2] in `cn'
+			local ++cn
+		}
+		drop in 1/2
+		ren * drop*
+		ren dropB name_GCB
+		ren dropC name_GCB2
+		drop drop*
+		save CodeData/Clean/GCBcodes, replace
+		
 	}
 	else {
-		use `"`anything'"', clear
+		use CodeData/Clean/GCBcodes, `clear'
+	}
+	
+end
+
+program define getTEDData
+
+	syntax [, REPLACE FETCH CLEAR]
+
+	if ("`fetch'"=="fetch") {
+		local replace replace
+	}
+	
+	capture: confirm file CodeData/Clean/TED.dta
+	if (_rc~=0 | "`replace'"=="replace") {
+
+		capture: mkdir CodeData
+		capture: mkdir CodeData/Clean
+
+		*	Carbon Emissions
+		local filename CodeData/Raw/TED.xlsx
+		capture: confirm file `filename'
+		if (_rc~=0 | "`fetch'"=="fetch") {
+			di as error "Please download (semi-gated) Total Economy Database Data located at " as result "" as error " to " as result "`filename'"
+		}
+		local variant ADJUSTED
+		import excel using `filename', ///
+			sheet(TCB_`variant') cellrange(a5) firstrow case(preserve) `clear'
+		local yc 1950
+		foreach var of varlist * {
+			if (strlen("`var'")<3) {
+				ren `var' Value`yc'
+				local ++yc
+			}
+		}
+		keep if inlist(IND,"GDP EKS","Employment","Total Hours","Population")
+		replace ISO = "CHN" if ISO=="CHN2"
+		drop if length(ISO)>3
+		drop REG MEA
+		replace IND = cond(IND=="Population","POP",cond(IND=="Employment","EMP", ///
+			cond(IND=="GDP EKS","EKSGDP","HRS")))
+		reshape long Value, i(ISO IND) j(Year)
+		reshape wide Value, i(ISO Year) j(IND) string
+		ren Value* *
+
+		compress
+		order ISO COU
+		sort ISO Year
+		save CodeData/Clean/TED, replace		
+		
+	}
+	else {
+		use CodeData/Clean/TED, `clear'
+	}
+	
+end
+
+program define getWEOData
+
+	syntax [, REPLACE FETCH CLEAR]
+
+	if ("`fetch'"=="fetch") {
+		local replace replace
+	}
+	
+	capture: confirm file CodeData/Clean/WEO.dta
+	if (_rc~=0 | "`replace'"=="replace") {
+
+		capture: mkdir CodeData
+		capture: mkdir CodeData/Clean
+
+		*	Carbon Emissions
+		capture: confirm file CodeData/Raw/WEO.txt
+		if (_rc~=0 | "`fetch'"=="fetch") {
+			local URL https://www.imf.org/external/pubs/ft/weo/2019/01/weodata/weoreptc.aspx?sy=1980&ey=2019&scc=1&sic=1&sort=country&ds=.&br=1&c=512%2c672%2c914%2c946%2c612%2c137%2c614%2c546%2c311%2c962%2c213%2c674%2c911%2c676%2c193%2c548%2c122%2c556%2c912%2c678%2c313%2c181%2c419%2c867%2c513%2c682%2c316%2c684%2c913%2c273%2c124%2c868%2c339%2c921%2c638%2c948%2c514%2c943%2c218%2c686%2c963%2c688%2c616%2c518%2c223%2c728%2c516%2c836%2c918%2c558%2c748%2c138%2c618%2c196%2c624%2c278%2c522%2c692%2c622%2c694%2c156%2c142%2c626%2c449%2c628%2c564%2c228%2c565%2c924%2c283%2c233%2c853%2c632%2c288%2c636%2c293%2c634%2c566%2c238%2c964%2c662%2c182%2c960%2c359%2c423%2c453%2c935%2c968%2c128%2c922%2c611%2c714%2c321%2c862%2c243%2c135%2c248%2c716%2c469%2c456%2c253%2c722%2c642%2c942%2c643%2c718%2c939%2c724%2c644%2c576%2c819%2c936%2c172%2c961%2c132%2c813%2c646%2c199%2c648%2c733%2c915%2c184%2c134%2c524%2c652%2c361%2c174%2c362%2c328%2c364%2c258%2c732%2c656%2c366%2c654%2c734%2c336%2c144%2c263%2c146%2c268%2c463%2c532%2c528%2c944%2c923%2c176%2c738%2c534%2c578%2c536%2c537%2c429%2c742%2c433%2c866%2c178%2c369%2c436%2c744%2c136%2c186%2c343%2c925%2c158%2c869%2c439%2c746%2c916%2c926%2c664%2c466%2c826%2c112%2c542%2c111%2c967%2c298%2c443%2c927%2c917%2c846%2c544%2c299%2c941%2c582%2c446%2c474%2c666%2c754%2c668%2c698&s=NGDP&grp=0&a=
+			copy `"`URL'"' CodeData/Raw/WEO.txt, replace
+		}
+		import delimited using CodeData/Raw/WEO.txt, ///
+			delim("\t") bindquotes(nobind) stripquotes(no) `clear' case(preserve)
+
+		keep if ~mi(Cou)
+		compress
+		save CodeData/Clean/WEO, replace
+		
+	}
+	else {
+		use CodeData/Clean/WEO, `clear'
 	}
 
 end
 
-program define readWDI
+program define getPWTData
 
-	syntax anything [, REPLACE]
+	syntax [, REPLACE FETCH CLEAR]
+
+	if ("`fetch'"=="fetch") {
+		local replace replace
+	}
 	
-	capture: confirm file `"`anything'"'
+	capture: confirm file CodeData/Clean/PWT.dta
 	if (_rc~=0 | "`replace'"=="replace") {
-		wbopendata, indicator(ny.gdp.mktp.kd.zg) latest nometadata clear
-		keep countryname countrycode iso2code
-		rename countryname WDICountryName
-		rename countrycode WDIAlpha3
-		rename iso2code WDIAlpha2
-		lab var WDICountryName "World Bank's WDI country name"
-		lab var WDIAlpha3 "World Bank's WDI three-letter country code"
-		lab var WDIAlpha2 "World Bank's WDI two-letter country code"
-		notes: Downloaded WDI codes from wbopendata on TS
+
+		capture: mkdir CodeData
+		capture: mkdir CodeData/Clean
+
+		capture: confirm file CodeData/Raw/pwt91.dta
+		if (_rc~=0 | "`fetch'"=="fetch") {
+			local URL https://www.rug.nl/ggdc/docs/pwt91.dta
+			copy `"`URL'"' CodeData/Raw/pwt91.dta, replace
+		}
+		use CodeData/Raw/pwt91, `clear'
 		compress
-		save `"`anything'"', replace
-	}
-	else {
-		use `"`anything'"', clear
+		save CodeData/Clean/PWT, replace
+
 	}
 
-end
-
-program define readTED
-
-	syntax anything [, REPLACE]
-			
-	local url https://www.conference-board.org/retrievefile.cfm?filename=TED_1_NOV20171.xlsx&type=subsite
-	capture: confirm file `"`anything'"'
-	if (_rc~=0 | "`replace'"=="replace") {
-		import excel TEDAlpha3=B TEDCountryName=C using `"`url'"', sheet("TCB_ADJUSTED") clear
-		keep if ~mi(TEDA) & TEDA~="ISO"
-		egen tedt = tag(TEDA)
-		keep if tedt
-		drop tedt
-		lab var TEDCountryName "Conference Board's TED country name"
-		lab var TEDAlpha3 "Conference Board's TED three-letter country code"
-		notes: Downloaded TED codes from `url' on TS
-		compress
-		save `"`anything'"', replace
-	
-	}
-	else {
-		use `"`anything'"', clear
-	}
-
-end
-
-program define readOECD
-
-	syntax anything [, REPLACE OECDlocal(string asis)]
-
-	if (`"`oecdlocal'"'=="") {
-		local oecdlocal `"https://stats.oecd.org/restsdmx/sdmx.ashx/GetDataStructure/QNA"'
-	}
-	capture: confirm file `"`anything'"'
-	if (_rc~=0 | "`replace'"=="replace") {
-		tempfile tt tf
-		copy `oecdlocal' `tt'
-		filefilter `tt' `tf', from("<Code") to("\U")
-		import delimited using `tf', delim(`"<Code"', asstring) clear
-		gen prep = "Downloaded OECD codes from `oecdlocal' on "+regexs(1) if regexm(v1,`"<Prepared>([^<]*)</Prepared>"')
-		levelsof prep if ~mi(prep), local(plist) clean
-		notes: `plist'
-		gen listid = regexs(1) if regexm(v1,`"List id="([^"]*)"')
-		gen listnum = sum(~mi(listid))
-		levelsof listnum if listid=="CL_QNA_LOCATION", local(ln)
-		keep if mi(listid) & listnum==`ln'
-		keep v1
-		gen details = regexs(1)+"|"+regexs(3) if regexm(v1,`"value="([^"]*)"( parentCode="[^"]*")*><Description xml:lang="en">([^<]*)<"')
-		split details, parse("|")
-		drop v1 details
-		ren details1 OECDAlpha3
-		ren details2 OECDCountryName
-		keep if regexm(OECDAlpha3,"^[A-Z][A-Z][A-Z]$")
-		drop if OECDAlpha3=="OTF"
-
-		lab var OECDCountryName "OECD's Economic Outlook country name"
-		lab var OECDAlpha3 "OECD's Economic Outlook three-letter country code"
-		compress
-		save `"`anything'"', replace
-	}
-	else {
-		use `"`anything'"', replace
-	}
-	notes
-	
 end

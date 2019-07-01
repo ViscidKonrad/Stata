@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.3  12feb2018}{...}
+{* *! version 2.0  01jul2019}{...}
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
@@ -50,9 +50,6 @@
 
 {phang}
 Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182, available for download at {browse "https://www.rug.nl/ggdc/productivity/pwt/related-research-papers/the_next_generation_of_the_penn_world_table.pdf":www.ggdc.net/pwt}
-
-{phang}
-Organisation for Economic Co-operation and Development {browse "http://stats.oecd.org/Index.aspx?DataSetCode=QNA":Quarterly National Accounts}
 
 {phang}
 The Conference Board {bf: Total Economy Database (TM)}, November 2017, {browse "http://www.conference-board.org/data/economydatabase/"}

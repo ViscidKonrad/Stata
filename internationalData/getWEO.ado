@@ -1,8 +1,8 @@
-*! version 1.0	13nov2017	David Rosnick
+*! version 2.0	01jul2019	David Rosnick
 program define getWEO
 
-	syntax [anything] [, WEOYear(integer 2017) WEOVersion(integer 2) Start(integer 1980) ///
-		End(integer 2022) ISO MAD MPD OECD TED WDI WEO Numeric ALPHA2 ALPHA3 Countryname RAW CLEAN ESTimates UNITS SCALE NOTES]
+	syntax [anything] [, WEOYear(integer 2019) WEOVersion(integer 1) Start(integer 1980) ///
+		End(integer 2024) GCB TED WDI WEO Numeric ALPHA2 ALPHA3 Countryname RAW CLEAN ESTimates UNITS SCALE NOTES]
 
 	tempfile mtemp htmlfile mrmfile
 	
